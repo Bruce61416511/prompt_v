@@ -53,6 +53,7 @@
 ├── docs/                     中文文档（27 篇模板详解 + 12 篇案例合集）
 ├── scripts/
 │   ├── build_extra_skills.py ★ 生成新增的 14 个技能（照抄 upstream 渲染逻辑）
+│   ├── sync_upstream.py      ★ 从上游拉最新数据并同步（左下角「检查更新」调的就是它）
 │   ├── test_pick_skills.py   挑技能准确率测试（26 项，含 lint 伴随判定）
 │   ├── test_lint.py          用质检技能跑 output/ 里的产物
 │   └── demo_one_skill.py     强制指定单个技能跑完整流水线（演示用）
@@ -139,6 +140,7 @@ python run.py --reload                 # 开发模式，改代码自动重启
 | 顶栏 `清空` | 清空页面 + 清空记忆 |
 | 左侧技能列表 | 当前加载的 31 个技能。**点一下能看详情**（干什么用的、带不带参考资料、正文开头） |
 | 左下角 `重新扫描` | 加了/删了技能文件夹后点一下，不用重启 |
+| 左下角 `检查更新` | 去上游看一眼有没有新案例。**按钮下面那行字就是状态**：`数据 2026-10-14（834 条） · 检查 今天 19:08` |
 | 左下角 `设置` | 改 API Key / 模型 |
 
 左边那栏**不用勾选**（默认全开），点进去只是给你看功能说明。
@@ -351,6 +353,51 @@ run_full()          # 总指挥：pick → resolve → generate
 
 ---
 
+## 检查更新（同步上游数据）
+
+`data/` 里的数据来自 upstream 仓库。想看看有没有新的，点左下角「**检查更新**」，或直接跑命令行：
+
+```bash
+python scripts/sync_upstream.py            # 检查并同步
+python scripts/sync_upstream.py --check    # 只看有没有新数据，一个字节都不写
+python scripts/sync_upstream.py --force-regen   # 数据没变也重生成技能
+```
+
+它做三件事：
+
+1. 拉 `data/cases.json`（案例）、`data/case-taxonomy.json`（归类表）、`data/style-library.json`（模板库）、`data/skills.json`
+2. 和本地**逐字节比对**（忽略行尾差异），**只有真变了才落盘**
+3. 数据有变化时，重生成 14 个自建技能 + 从上游拉 13 个上游技能的 `SKILL.md` / `cases.md`
+
+之后把结果写进 `data/update-status.json`。
+
+### 那行字怎么读
+
+```
+数据 2026-10-14（834 条） · 检查 今天 19:08
+```
+
+| 位置 | 含义 |
+|---|---|
+| `数据 …（N 条）` | **上游数据的版本**。只有上游真出新数据才变 |
+| `检查 今天 19:08` | **上次检查的时间**。每点一次都会更新，哪怕没新数据 |
+
+两个分开显示，是为了不出现「数据其实还是旧的、界面却显示刚刚」的误导。
+
+### 会动哪些文件、不碰哪些
+
+| | |
+|---|---|
+| **会覆盖** | `data/` 下那 4 个数据文件；14 个自建技能的 `SKILL.md` + `references/cases.md`；13 个上游技能的这两个文件 |
+| **不碰** | `seedance-prompt-lint`（我们改造过的）、`prompt-library`、`storyboard-writer`、`production-workflow`；`data/templates-local.json`、`data/skills-extra.json`（本项目自己的） |
+
+- **没新数据时，技能文件一个字节都不会变**（已验证幂等：连跑两次哈希完全一致）
+- 拉到的东西**必须是合法 JSON 才会落盘**，拿到坏数据不会覆盖本地
+- 源顺序：默认走 `gh-proxy.com` 镜像（实测 ~1.9 秒），失败自动回退直连
+  （实测直连 `raw.githubusercontent.com` **首次要 60 秒**，所以不作为首选）
+
+---
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -361,6 +408,8 @@ run_full()          # 总指挥：pick → resolve → generate
 | POST | `/api/config` | 改配置 |
 | POST | `/api/chat` | 一次性返回结果 |
 | POST | `/api/stream` | SSE 流式，能看每步进度（前端用的这个） |
+| GET | `/api/update/status` | 上次检查上游的时间 + 当前数据版本（前端左下角显示的那行字） |
+| POST | `/api/update/run` | 手动检查上游并同步，约 10~20 秒返回（左下角「检查更新」按钮） |
 
 `/api/chat` 和 `/api/stream` 的请求体：
 
@@ -390,6 +439,7 @@ run_full()          # 总指挥：pick → resolve → generate
 | 改了 `config.json` 的 `base_url` / `api_key` / `model` | 不用重启，下次请求自动生效 |
 | 改了 `skills_whitelist` | 重启，或点「重新扫描」（会顺便重读白名单） |
 | 改了 `static/index.html` | 浏览器 `Ctrl+F5` 强刷，不用重启 |
+| 想同步上游最新案例 | 点左下角「**检查更新**」，不用重启；命令行 `python scripts/sync_upstream.py` |
 | 换了 `--skills` 目录 / 改了 `SKILLS_DIR` | **必须完全停进程再启**（`--reload` 不会重读环境变量） |
 
 ---

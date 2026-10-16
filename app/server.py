@@ -9,11 +9,16 @@
     POST /api/config          改大模型配置
     POST /api/chat            一次性返回：选skill → 生成 → 质检
     POST /api/stream          流式返回，前端能实时看到每一步
+    GET  /api/update/status   上次检查上游的时间 + 当前数据版本
+    POST /api/update/run      手动检查上游并同步（归类表 + 案例 + 重生成技能）
 """
 from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -33,6 +38,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SKILLS_DIR = Path(os.environ.get("SKILLS_DIR") or (BASE_DIR / "skills"))
 STATIC_DIR = BASE_DIR / "static"
 CONFIG_FILE = BASE_DIR / "config.json"
+
+# 上游同步
+SYNC_SCRIPT = BASE_DIR / "scripts" / "sync_upstream.py"
+SYNC_STATUS_FILE = BASE_DIR / "data" / "update-status.json"
+SYNC_TIMEOUT = 300          # 秒。正常几秒就完；给足余量防止网络抖动误判超时
+_sync_lock = threading.Lock()
 
 
 def _load_cfg() -> LLMConfig:
@@ -134,6 +145,81 @@ def reload_skills():
     names = loader.reload()
     return {"ok": True, "count": len(names), "skills": names}
 
+
+# ---------------------------------------------------------------- 上游同步
+
+def _read_sync_status() -> dict:
+    """读状态文件。没跑过就返回一个空壳，前端好渲染。"""
+    if not SYNC_STATUS_FILE.is_file():
+        return {
+            "ok": None,
+            "neverRun": True,
+            "checkedAt": None,
+            "changed": False,
+            "message": "还没检查过",
+            "dataVersion": {},
+        }
+    try:
+        data = json.loads(SYNC_STATUS_FILE.read_text(encoding="utf-8"))
+        data["neverRun"] = False
+        return data
+    except Exception as e:                          # noqa: BLE001
+        return {
+            "ok": False,
+            "neverRun": False,
+            "checkedAt": None,
+            "changed": False,
+            "message": f"状态文件读不出来：{e}",
+            "dataVersion": {},
+        }
+
+
+@app.get("/api/update/status")
+def update_status():
+    """给前端显示「上次检查时间 / 数据版本」。"""
+    return _read_sync_status()
+
+
+@app.post("/api/update/run")
+def update_run():
+    """手动跑一次上游同步。秒级返回；同一时间只允许一个。"""
+    if not _sync_lock.acquire(blocking=False):
+        raise HTTPException(409, "已经有一个检查在跑了，等它结束再点。")
+    try:
+        if not SYNC_SCRIPT.is_file():
+            raise HTTPException(500, f"找不到同步脚本：{SYNC_SCRIPT}")
+
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(SYNC_SCRIPT)],
+                cwd=str(BASE_DIR),
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", env=env, timeout=SYNC_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            raise HTTPException(504, "检查超时了，多半是网络连不上上游。")
+        except Exception as e:                      # noqa: BLE001
+            raise HTTPException(500, f"跑同步脚本失败：{e}")
+
+        status = _read_sync_status()
+        status["stdout"] = (proc.stdout or "")[-4000:]
+        if proc.stderr:
+            status["stderr"] = proc.stderr[-2000:]
+
+        # 技能文件可能被重写过，让内存里的缓存跟上
+        try:
+            names = loader.reload()
+            status["skillCount"] = len(names)
+        except Exception:                           # noqa: BLE001
+            pass
+
+        return status
+    finally:
+        _sync_lock.release()
+
+
+# ---------------------------------------------------------------- 大模型配置
 
 @app.get("/api/config")
 def get_config():

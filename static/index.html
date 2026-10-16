@@ -216,9 +216,17 @@
     <div class="sec-title">可用技能</div>
     <div id="skillList"></div>
   </div>
-  <div class="side-foot">
-    <button class="btn sm" onclick="reloadSkills()">重新扫描</button>
-    <button class="btn sm" onclick="openConfig()">设置</button>
+  <div class="side-foot" style="flex-direction:column;align-items:stretch;gap:9px">
+    <div>
+      <button class="btn sm" id="updateBtn" style="flex:none;width:100%" onclick="askUpdate()">检查更新</button>
+      <div id="updateMeta" style="font-size:10.5px;color:#5a6474;margin-top:6px;line-height:1.6;text-align:center">
+        读取中…
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn sm" onclick="reloadSkills()">重新扫描</button>
+      <button class="btn sm" onclick="openConfig()">设置</button>
+    </div>
   </div>
 </aside>
 
@@ -282,6 +290,29 @@
     <div class="modal-foot">
       <button class="btn" onclick="closeConfig()">取消</button>
       <button class="btn primary" onclick="saveConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 检查更新确认弹窗 ============ -->
+<div class="mask" id="updateMask" onclick="if(event.target===this)closeAskUpdate()">
+  <div class="modal">
+    <div class="modal-head">检查更新</div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;line-height:1.85;color:#c9d1d9">
+        会去上游仓库看一眼有没有新数据，有就拉下来，然后重新生成技能里的案例文件。
+      </div>
+      <div style="font-size:11.5px;line-height:1.8;color:#5a6474">
+        · 没有新数据时，技能文件不会被改动<br>
+        · 大约需要 10~20 秒，期间请不要关页面
+      </div>
+      <div style="font-size:11.5px;line-height:1.8;color:var(--warn)">
+        ⚠ 如果有新数据，<b>skills/ 下的技能文件会被覆盖重写</b>（内容由 data/ 重新生成）。
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAskUpdate()">取消</button>
+      <button class="btn primary" onclick="runUpdate()">开始检查</button>
     </div>
   </div>
 </div>
@@ -677,6 +708,90 @@ async function saveConfig(){
   toast('已保存');
 }
 
+/* ============================== 检查更新 ============================== */
+/* 时间分两个，别混：
+   - dataVersion.exportedAt：上游数据的版本，只有真有新数据才会变
+   - checkedAt：上次检查的时间，每点一次都会变
+   两个都显示，就不会出现「数据其实是旧的、界面却显示刚刚」的误导。 */
+
+function fmtClock(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const hm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  const now = new Date();
+  if(d.toDateString() === now.toDateString()) return '今天 ' + hm;
+  const md = String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return md + ' ' + hm;
+}
+
+function fmtDataVer(v){
+  if(!v || !v.exportedAt) return '';
+  const day = String(v.exportedAt).slice(0,10);
+  return v.caseCount ? `${day}（${v.caseCount} 条）` : day;
+}
+
+function renderUpdateStatus(s){
+  const el = document.getElementById('updateMeta');
+  if(!el) return;
+  const parts = [];
+  parts.push(s && s.dataVersion && s.dataVersion.exportedAt
+    ? '数据 ' + fmtDataVer(s.dataVersion) : '数据 未知');
+  parts.push(s && s.checkedAt ? '检查 ' + fmtClock(s.checkedAt) : '从未检查');
+  el.textContent = parts.join(' · ');
+  el.style.color = (s && s.ok === false) ? 'var(--bad)' : '#5a6474';
+  el.title = (s && s.message) ? s.message : '';
+}
+
+async function loadUpdateStatus(){
+  try{
+    renderUpdateStatus(await fetch('/api/update/status').then(r=>r.json()));
+  }catch(e){
+    renderUpdateStatus({ ok:false, message:'读不到状态：' + e.message });
+  }
+}
+
+function askUpdate(){ document.getElementById('updateMask').classList.add('show'); }
+function closeAskUpdate(){ document.getElementById('updateMask').classList.remove('show'); }
+
+async function runUpdate(){
+  closeAskUpdate();
+  const btn = document.getElementById('updateBtn');
+  const meta = document.getElementById('updateMeta');
+  const keep = { text: meta.textContent, color: meta.style.color };
+
+  btn.disabled = true;
+  btn.textContent = '检查中…';
+  meta.textContent = '正在连接上游，大约十几秒…';
+  meta.style.color = 'var(--dim)';
+
+  try{
+    const resp = await fetch('/api/update/run', { method:'POST' });
+    if(!resp.ok){
+      const e = await resp.json().catch(()=>({}));
+      throw new Error(e.detail || ('HTTP ' + resp.status));
+    }
+    const s = await resp.json();
+    renderUpdateStatus(s);
+
+    if(s.changed){
+      toast(s.message || '已同步上游新数据');
+      await loadSkills();              // 技能内容变了，刷新左侧列表
+    }else if(s.ok === false){
+      toast('检查失败：' + (s.message || '未知原因'));
+    }else{
+      toast(s.message || '已是最新');
+    }
+  }catch(err){
+    meta.textContent = keep.text;
+    meta.style.color = keep.color;
+    toast('检查失败：' + err.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '检查更新';
+  }
+}
+
 /* ============================== 杂项 ============================== */
 function fill(t){ const el=document.getElementById('input'); el.value=t; el.focus(); autoGrow(); }
 function autoGrow(){ const el=document.getElementById('input'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
@@ -694,6 +809,7 @@ document.getElementById('input').addEventListener('keydown', e=>{
 });
 
 loadSkills().then(()=>{ if(S.skills.length===0) toast('没找到技能包，检查 skills 目录'); });
+loadUpdateStatus();
 </script>
 </body>
 </html>
