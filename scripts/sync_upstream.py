@@ -8,14 +8,16 @@
     python scripts/sync_upstream.py --json     # 结果以单行 JSON 打到 stdout（给后端调用）
     python scripts/sync_upstream.py --force-regen   # 即使数据没变也重生成技能
 
-做三件事：
+做四件事：
     1. 拉上游 data/ 下的数据文件，和本地逐字节比对（忽略行尾差异），**只有真变了才落盘**
     2. 数据有变化时重生成 14 个自建技能（build_extra_skills.py，已验证幂等）
     3. 拉 13 个上游技能（我们自己不生成的）的 SKILL.md / references/cases.md
+    4. 拉 EXTRA_FILES 里的「孤儿文件」——不从 data/ 渲染、项目里也没人生成的文件
 
 然后把结果写进 data/update-status.json，供前端显示「上次检查时间 / 数据版本」。
 
-不碰这些：seedance-prompt-lint（我们改造过的）、prompt-library、storyboard-writer、production-workflow。
+不碰这些：seedance-prompt-lint（我们改造过的）、prompt-library、storyboard-writer、production-workflow
+的 SKILL.md 与 cases.md。（注意 EXTRA_FILES 是例外，见下方注释。）
 """
 from __future__ import annotations
 
@@ -67,6 +69,19 @@ NEVER_TOUCH = {
     "seedance-production-workflow",
 }
 
+# ---- 孤儿文件：只从上游拉，本地不生成 ----
+# 背景（2026-10-16 发现）：skills/seedance-prompt-library/references/style-library.md
+#   · 有 141 KB，内容是从上游 data/style-library.json 渲染出来的；
+#   · 但本项目**没有任何脚本生成它**（grep scripts/ 零命中）；
+#   · 而 seedance-prompt-library 又在 NEVER_TOUCH 里，上面的第 3 步也不会拉它。
+#   → 结果：data/style-library.json 更新了，这个 md 却永远停在搬进来那天。
+# 这里把它单列出来跟随上游，填补这个缺口。
+# 校验偏保守：内容太短或为空一律不写，避免上游返回错误页把本地文件搞坏。
+EXTRA_FILES = [
+    "agents/skills/seedance-prompt-library/references/style-library.md",
+]
+EXTRA_MIN_BYTES = 4096          # 孤儿文件的最小可信体积（实际 141 KB，留足余量）
+
 
 # ---------------------------------------------------------------- 小工具
 
@@ -81,6 +96,12 @@ def normalize(b: bytes) -> bytes:
 
 def same(a: bytes, b: bytes) -> bool:
     return normalize(a) == normalize(b)
+
+
+def looks_like_markdown(b: bytes) -> bool:
+    """粗校验：Markdown 应以 `#` 标题开头。
+    用来挡住上游返回 HTML 错误页 / 登录页 / 空响应之类的东西。"""
+    return b.lstrip()[:64].startswith(b"#")
 
 
 def local_eol(p: Path) -> bytes:
@@ -162,7 +183,8 @@ def run(check_only: bool, force_regen: bool) -> dict:
         "message": "",
         "dataFiles": [],
         "errors": [],
-        "skills": {"regenerated": 0, "pulledFromUpstream": 0, "pulledNames": []},
+        "skills": {"regenerated": 0, "pulledFromUpstream": 0,
+                   "pulledNames": [], "extraFiles": []},
     }
 
     data_changed_something = False
@@ -243,32 +265,53 @@ def run(check_only: bool, force_regen: bool) -> dict:
         except Exception as e:                      # noqa: BLE001
             report["errors"].append(f"重生成技能异常：{e}")
 
-    # ---- 3. 拉上游技能的 SKILL.md / references/cases.md
+    # ---- 3. 拉上游技能的 SKILL.md / references/cases.md，外加 EXTRA_FILES 孤儿文件
     # 上游的技能文件也是从同一份数据生成的：数据没变就不必拉（省掉 26 次请求）
     pulled: list[str] = []
+    extra_touched: list[str] = []
     if should_regen:
-        jobs: list[tuple[str, str]] = []
+        # (上游相对路径, 本地相对 skills/ 的落地路径, 最小可信体积)
+        jobs: list[tuple[str, str, int]] = []
         for name in upstream_skill_names():
-            jobs.append((name, f"agents/skills/{name}/SKILL.md"))
-            jobs.append((name, f"agents/skills/{name}/references/cases.md"))
+            jobs.append((f"agents/skills/{name}/SKILL.md", f"{name}/SKILL.md", 0))
+            jobs.append(
+                (f"agents/skills/{name}/references/cases.md",
+                 f"{name}/references/cases.md", 0)
+            )
+        for rel in EXTRA_FILES:
+            jobs.append((rel, rel.split("agents/skills/", 1)[-1], EXTRA_MIN_BYTES))
 
         with ThreadPoolExecutor(max_workers=8) as ex:
-            got = list(ex.map(lambda j: (j[0], j[1], *fetch(j[1])), jobs))
+            got = list(ex.map(lambda j: (*j, *fetch(j[0])), jobs))
 
+        extra_dests = {rel.split("agents/skills/", 1)[-1] for rel in EXTRA_FILES}
         touched_names: set[str] = set()
-        for name, rel, remote, _err in got:
+        for _rel, dest, minbytes, remote, _err in got:
             if remote is None:
                 continue
-            sub = rel.split(f"agents/skills/{name}/", 1)[1]
-            local_p = SKILLS_DIR / name / sub
+            if minbytes and len(remote) < minbytes:
+                report["errors"].append(
+                    f"{dest}：拉到的内容只有 {len(remote)} 字节（预期 ≥{minbytes}），疑似异常，已跳过"
+                )
+                continue
+            if dest in extra_dests and not looks_like_markdown(remote):
+                report["errors"].append(
+                    f"{dest}：拉到的内容不像 Markdown（未以 # 开头），疑似上游返回了错误页，已跳过"
+                )
+                continue
+            local_p = SKILLS_DIR / dest
             if local_p.is_file() and same(local_p.read_bytes(), remote):
                 continue
             write_keeping_eol(local_p, remote)
-            touched_names.add(name)
+            if dest in extra_dests:
+                extra_touched.append(dest)
+            else:
+                touched_names.add(dest.split("/", 1)[0])
 
         pulled = sorted(touched_names)
         report["skills"]["pulledFromUpstream"] = len(pulled)
         report["skills"]["pulledNames"] = pulled
+        report["skills"]["extraFiles"] = sorted(extra_touched)
 
     # ---- 4. 结论
     if report["errors"] and not report["dataFiles"]:
@@ -347,6 +390,9 @@ def main() -> int:
         print()
         sk = rep["skills"]
         print(f"技能：重生成 {sk['regenerated']} 个 · 从上游拉取 {sk['pulledFromUpstream']} 个")
+        if sk.get("extraFiles"):
+            for f in sk["extraFiles"]:
+                print(f"  孤儿文件已更新：{f}")
         if rep["errors"]:
             print()
             print("错误：")

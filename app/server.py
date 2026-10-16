@@ -11,14 +11,18 @@
     POST /api/stream          流式返回，前端能实时看到每一步
     GET  /api/update/status   上次检查上游的时间 + 当前数据版本
     POST /api/update/run      手动检查上游并同步（归类表 + 案例 + 重生成技能）
+    GET  /api/cases           案例库列表（分页 + 搜索 + 筛选，只返回轻量字段）
+    GET  /api/cases/{slug}    单条案例详情（含完整 prompt）
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
+from collections import Counter
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -306,6 +310,333 @@ def stream(req: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------------------------------------------------------------- 案例库
+# 数据源就是 data/cases.json（上游同步脚本维护它）。这里只读、不写。
+# 列表接口只吐轻量字段，完整 prompt 走详情接口 —— 834 条的 prompt 加起来 3.9 MB，
+# 一次全塞给前端首屏会明显变慢。
+
+CASES_FILE = BASE_DIR / "data" / "cases.json"
+TAXONOMY_FILE = BASE_DIR / "data" / "case-taxonomy.json"
+STYLE_LIB_FILE = BASE_DIR / "data" / "style-library.json"
+TEMPLATES_LOCAL_FILE = BASE_DIR / "data" / "templates-local.json"
+
+CASE_PAGE_DEFAULT = 60
+CASE_PAGE_MAX = 120
+CREATOR_FACET_TOP = 40
+
+# 版本分档口径与上游 scripts/lib/render.mjs 完全一致：
+# models 里的明确版本（多个取最高）> 标题/摘要里写的版本 > 兜底 2.0。裸标 "Seedance" 不参与。
+SEEDANCE_MODEL_RE = re.compile(r"^\s*seedance(?:[\s_-]*(\d+(?:\.\d+)?))?\s*(.*)$", re.I)
+SEEDANCE_TEXT_RE = re.compile(r"seedance[\s_-]*(\d+(?:\.\d+)?)", re.I)
+
+_cases_lock = threading.Lock()
+_cases_cache: dict = {"key": None, "list": [], "by_slug": {}, "hay": {},
+                      "facets": {}, "version": {}}
+
+
+def _seedance_version_of(model) -> str | None:
+    """单个模型标签的档位："2.5" / "2.0" / "unspecified"，非 Seedance 返回 None。"""
+    if not isinstance(model, str):
+        return None
+    m = SEEDANCE_MODEL_RE.match(model)
+    if not m:
+        return None
+    if not m.group(1):
+        return "unspecified"
+    return "2.5" if float(m.group(1)) >= 2.5 else "2.0"
+
+
+def _classify_seedance(case: dict) -> str:
+    """整条案例的版本档，只有 2.5 / 2.0 两档，每条只算一次。"""
+    for model in case.get("models") or []:
+        if _seedance_version_of(model) == "2.5":
+            return "2.5"
+    for model in case.get("models") or []:
+        if _seedance_version_of(model) == "2.0":
+            return "2.0"
+    text = f"{case.get('title') or ''}\n{case.get('summary') or ''}"
+    found = ["2.5" if float(v) >= 2.5 else "2.0" for v in SEEDANCE_TEXT_RE.findall(text)]
+    if "2.5" in found:
+        return "2.5"
+    return "2.0"          # 含 found 为空的情况：兜底 2.0
+
+
+def _load_categories() -> dict[str, str]:
+    """模板大类 id → 中文名。"""
+    try:
+        lib = json.loads(STYLE_LIB_FILE.read_text(encoding="utf-8"))
+        out = {}
+        for c in lib.get("categories") or []:
+            title = c.get("title") or {}
+            out[c.get("id", "")] = title.get("zh") or title.get("en") or c.get("id", "")
+        return out
+    except Exception:                               # noqa: BLE001
+        return {}
+
+
+def _load_templates() -> dict[str, dict]:
+    """模板 id → {name, category}。
+    合并 data/style-library.json 与 data/templates-local.json，
+    口径与上游 scripts/lib/library.mjs 一致（overrides 按语言逐字段合并，templates 补全新增项）。"""
+    tpl: dict[str, dict] = {}
+    try:
+        lib = json.loads(STYLE_LIB_FILE.read_text(encoding="utf-8"))
+        for t in lib.get("templates") or []:
+            if t.get("id"):
+                tpl[t["id"]] = dict(t)
+    except Exception:                               # noqa: BLE001
+        pass
+
+    try:
+        loc = json.loads(TEMPLATES_LOCAL_FILE.read_text(encoding="utf-8"))
+        for tid, patch in (loc.get("overrides") or {}).items():
+            if tid not in tpl or not isinstance(patch, dict):
+                continue
+            for k, v in patch.items():
+                if isinstance(v, dict) and isinstance(tpl[tid].get(k), dict):
+                    tpl[tid][k] = {**tpl[tid][k], **v}
+                else:
+                    tpl[tid][k] = v
+        for t in loc.get("templates") or []:
+            if t.get("id"):
+                tpl.setdefault(t["id"], t)
+    except Exception:                               # noqa: BLE001
+        pass
+
+    out: dict[str, dict] = {}
+    for tid, t in tpl.items():
+        title = t.get("title") or {}
+        name = (title.get("zh") or title.get("en") or tid) if isinstance(title, dict) else tid
+        out[tid] = {"id": tid, "name": name, "category": t.get("category") or ""}
+    return out
+
+
+def _cases_key() -> tuple:
+    """缓存指纹：任一数据文件的 mtime 变了就重建。"""
+    key = []
+    for p in (CASES_FILE, TAXONOMY_FILE, STYLE_LIB_FILE, TEMPLATES_LOCAL_FILE):
+        try:
+            key.append(p.stat().st_mtime_ns)
+        except OSError:
+            key.append(0)
+    return tuple(key)
+
+
+def _build_cases() -> dict:
+    """把 cases.json 整理成列表用/详情用两份结构，顺便算好筛选面板的计数。"""
+    raw = json.loads(CASES_FILE.read_text(encoding="utf-8"))
+    cases = raw.get("cases") or []
+    meta = raw.get("meta") or {}
+
+    taxonomy: dict[str, str] = {}
+    try:
+        t = json.loads(TAXONOMY_FILE.read_text(encoding="utf-8"))
+        taxonomy = {k: v for k, v in (t.get("assignments") or {}).items() if isinstance(v, str)}
+    except Exception:                               # noqa: BLE001
+        taxonomy = {}
+
+    templates = _load_templates()
+    categories = _load_categories()
+
+    light: list[dict] = []
+    by_slug: dict[str, dict] = {}
+    hay: dict[str, str] = {}
+    n_model: Counter = Counter()
+    n_level: Counter = Counter()
+    n_tpl: Counter = Counter()
+    n_creator: Counter = Counter()
+
+    for c in cases:
+        slug = c.get("slug") or ""
+        if not slug:
+            continue
+        tpl_id = taxonomy.get(slug) or ""
+        model = _classify_seedance(c)
+        tpl_name = (templates.get(tpl_id) or {}).get("name", "")
+
+        light.append({
+            "slug": slug,
+            "title": c.get("title") or c.get("titleEn") or slug,
+            "summary": (c.get("summary") or "").strip(),
+            "poster": c.get("posterUrl") or "",
+            "creator": c.get("creator") or "",
+            "model": model,
+            "template": tpl_id,
+            "templateName": tpl_name,
+            "heat": c.get("heatScore"),
+            "stability": c.get("stabilityScore"),
+            "level": c.get("evidenceLevel") or "",
+            "publishedAt": c.get("sourcePublishedAt") or "",
+            "retestCount": len(c.get("retests") or []),
+            "tags": c.get("tags") or [],
+        })
+        by_slug[slug] = {**c, "model": model, "template": tpl_id, "templateName": tpl_name}
+
+        # 搜索用的低配串：只留必要字段，避免每次请求都去 lower() 全文
+        hay[slug] = "\n".join([
+            str(c.get("title") or ""), str(c.get("titleEn") or ""),
+            str(c.get("summary") or ""), str(c.get("creator") or ""),
+            str(c.get("promptFull") or ""),
+        ]).lower()
+
+        n_model[model] += 1
+        n_level[light[-1]["level"]] += 1
+        n_creator[light[-1]["creator"]] += 1
+        if tpl_id:
+            n_tpl[tpl_id] += 1
+
+    cat_of = {tid: t["category"] for tid, t in templates.items()}
+    n_cat: Counter = Counter()
+    for tid, cnt in n_tpl.items():
+        n_cat[cat_of.get(tid, "")] += cnt
+
+    facets = {
+        "models": [{"v": v, "n": n_model.get(v, 0)} for v in ("2.5", "2.0")],
+        "levels": [{"v": v, "n": n_level.get(v, 0)} for v in ("L2", "L1", "L0") if n_level.get(v)],
+        "templates": sorted(
+            [{"id": tid, "name": t["name"], "category": t["category"], "n": cnt}
+             for tid, t in templates.items()
+             if (cnt := n_tpl.get(tid, 0))],
+            key=lambda x: (-x["n"], x["name"]),
+        ),
+        "categories": [
+            {"id": cid, "name": categories.get(cid, cid), "n": cnt}
+            for cid, cnt in n_cat.most_common()
+        ],
+        "creators": [{"v": v, "n": n} for v, n in n_creator.most_common(CREATOR_FACET_TOP)],
+    }
+
+    return {
+        "key": _cases_key(),
+        "list": light,
+        "by_slug": by_slug,
+        "hay": hay,
+        "facets": facets,
+        "version": {
+            "exportedAt": meta.get("exportedAt", ""),
+            "caseCount": meta.get("caseCount") or len(light),
+        },
+    }
+
+
+def _get_cases() -> dict:
+    """带缓存的读取。数据文件没变就直接用内存里的。"""
+    key = _cases_key()
+    if _cases_cache["key"] == key and _cases_cache["list"]:
+        return _cases_cache
+    with _cases_lock:
+        if _cases_cache["key"] == key and _cases_cache["list"]:
+            return _cases_cache
+        if not CASES_FILE.is_file():
+            return {"key": key, "list": [], "by_slug": {}, "hay": {},
+                    "facets": {}, "version": {}}
+        built = _build_cases()
+        _cases_cache.update(built)
+        return _cases_cache
+
+
+def _sort_cases(items: list[dict], sort: str, by_slug: dict) -> list[dict]:
+    def num(v):
+        return v if isinstance(v, (int, float)) else -1
+
+    if sort == "stable":
+        return sorted(items, key=lambda x: (-num(x["stability"]), -num(x["heat"])))
+    if sort == "new":
+        return sorted(items, key=lambda x: (x["publishedAt"] or ""), reverse=True)
+    if sort == "title":
+        return sorted(items, key=lambda x: x["title"])
+    return sorted(items, key=lambda x: -num(x["heat"]))          # 默认按热度
+
+
+@app.get("/api/cases")
+def list_cases(
+    q: str = "", model: str = "", template: str = "", level: str = "",
+    creator: str = "", sort: str = "hot",
+    offset: int = 0, limit: int = CASE_PAGE_DEFAULT,
+):
+    """案例库列表。只返回轻量字段，完整 prompt 用 /api/cases/{slug} 取。"""
+    cache = _get_cases()
+    items = cache["list"]
+
+    if model:
+        items = [it for it in items if it["model"] == model]
+    if template:
+        items = [it for it in items if it["template"] == template]
+    if level:
+        items = [it for it in items if it["level"] == level]
+    if creator:
+        items = [it for it in items if it["creator"] == creator]
+
+    word = q.strip().lower()
+    if word:
+        hay = cache["hay"]
+        items = [it for it in items if word in hay.get(it["slug"], "")]
+
+    items = _sort_cases(items, sort, cache["by_slug"])
+
+    offset = max(0, offset)
+    limit = max(1, min(limit, CASE_PAGE_MAX))
+    page = items[offset:offset + limit]
+
+    return {
+        "total": len(items),
+        "offset": offset,
+        "limit": limit,
+        "hasMore": offset + len(page) < len(items),
+        "items": page,
+        "facets": cache["facets"],
+        "dataVersion": cache["version"],
+    }
+
+
+@app.get("/api/cases/{slug}")
+def get_case(slug: str):
+    """单条案例的完整内容。"""
+    cache = _get_cases()
+    case = cache["by_slug"].get(slug)
+    if not case:
+        raise HTTPException(404, f"没有这条案例：{slug}")
+
+    prompt = case.get("promptFull") or ""
+    retests = []
+    for r in case.get("retests") or []:
+        retests.append({
+            "model": r.get("model") or "",
+            "verdict": r.get("verdict") or "",
+            "testedAt": r.get("testedAt") or "",
+            "score": r.get("finalScore"),
+            "artifactUrl": r.get("artifactUrl") or "",
+        })
+
+    return {
+        "slug": case.get("slug"),
+        "title": case.get("title") or case.get("titleEn") or slug,
+        "titleEn": case.get("titleEn") or "",
+        "summary": case.get("summary") or "",
+        "summaryEn": case.get("summaryEn") or "",
+        "promptFull": prompt,
+        "promptChars": len(prompt),
+        "promptLines": prompt.count("\n") + 1 if prompt else 0,
+        "posterUrl": case.get("posterUrl") or "",
+        "mediaUrl": case.get("mediaUrl") or "",
+        "goodcaseUrl": case.get("goodcaseUrl") or "",
+        "sourceUrl": case.get("sourceUrl") or "",
+        "creator": case.get("creator") or "",
+        "models": case.get("models") or [],
+        "model": case.get("model") or "",
+        "template": case.get("template") or "",
+        "templateName": case.get("templateName") or "",
+        "tags": case.get("tags") or [],
+        "heatScore": case.get("heatScore"),
+        "stabilityScore": case.get("stabilityScore"),
+        "evidenceLevel": case.get("evidenceLevel") or "",
+        "publishedAt": case.get("sourcePublishedAt") or "",
+        "retests": retests,
+        "retestSummary": case.get("retestSummary") or {},
+        "dataVersion": cache["version"],
+    }
 
 
 # ---------------------------------------------------------------- 静态页面

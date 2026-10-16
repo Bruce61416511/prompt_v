@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>提示词智能体 · Skill 驱动</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f8cff'/%3E%3Cpath d='M12 9l12 7-12 7z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
@@ -198,6 +199,94 @@
   .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff}
   .btn.sm{padding:6px 12px; font-size:11.5px; flex:1}
 
+  /* ---------- 视图切换 ---------- */
+  .view{flex:1; display:flex; flex-direction:column; min-height:0}
+  .tabs{display:flex; gap:3px; background:#11141a; border:1px solid var(--line); border-radius:10px; padding:3px; flex-shrink:0}
+  .tab{font-size:12.5px; padding:5px 13px; border-radius:7px; color:var(--dim); cursor:pointer; transition:.15s; white-space:nowrap; user-select:none; border:1px solid transparent}
+  .tab:hover{color:var(--fg)}
+  .tab.active{background:var(--panel2); color:var(--fg); border-color:#3a4150}
+  .tab .n{font-size:10.5px; opacity:.55; margin-left:4px}
+
+  /* ---------- 案例库 ---------- */
+  .case-tools{display:flex; gap:9px; align-items:center; padding:11px 20px; border-bottom:1px solid var(--line); flex-shrink:0; flex-wrap:wrap}
+  .case-search{
+    flex:1; min-width:200px; background:var(--panel2); border:1px solid var(--line); border-radius:9px;
+    padding:8px 12px; color:var(--fg); font-size:12.5px; outline:none; font-family:inherit; transition:.15s;
+  }
+  .case-search:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,140,255,.1)}
+  .case-sel{
+    background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:8px 10px;
+    color:var(--fg); font-size:12.5px; outline:none; font-family:inherit; cursor:pointer;
+  }
+  .case-filters{
+    padding:9px 20px 10px; border-bottom:1px solid var(--line); flex-shrink:0;
+    display:flex; flex-direction:column; gap:7px; max-height:148px; overflow-y:auto;
+  }
+  .frow{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+  .fl{font-size:10.5px; color:#5a6474; flex-shrink:0; min-width:28px}
+  .fchip{
+    font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--line); background:#1a1e26;
+    color:var(--dim); cursor:pointer; transition:.13s; white-space:nowrap; user-select:none;
+  }
+  .fchip:hover{border-color:#3a4150; color:var(--fg)}
+  .fchip.active{background:#1b2436; border-color:var(--accent); color:var(--accent)}
+  .fchip .n{opacity:.5; margin-left:4px; font-size:10px}
+  .case-scroll{flex:1; overflow-y:auto; padding:16px 20px 40px}
+  .case-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:14px}
+  .c-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:11px; overflow:hidden;
+    cursor:pointer; transition:.15s; display:flex; flex-direction:column;
+  }
+  .c-card:hover{border-color:#3a4150; transform:translateY(-2px)}
+  .c-thumb{position:relative; aspect-ratio:16/9; background:#11141a; overflow:hidden}
+  .c-thumb img{width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity .3s}
+  .c-thumb img.on{opacity:1}
+  .c-thumb .ph{position:absolute; inset:0; display:grid; place-items:center; color:#3a4150; font-size:10.5px}
+  .c-tag{
+    position:absolute; top:7px; left:7px; font-size:10px; padding:2px 6px; border-radius:6px;
+    background:rgba(15,17,21,.85); border:1px solid rgba(255,255,255,.08); color:#c9d1d9;
+  }
+  .c-tag.l2{color:var(--ok); border-color:rgba(63,185,80,.35)}
+  .c-hot{
+    position:absolute; bottom:7px; right:7px; font-size:10px; padding:2px 6px; border-radius:6px;
+    background:rgba(15,17,21,.85); border:1px solid rgba(255,255,255,.08); color:#c9d1d9;
+  }
+  .c-info{padding:9px 11px 11px; display:flex; flex-direction:column; gap:5px}
+  .c-title{
+    font-size:12.5px; font-weight:600; line-height:1.45; min-height:36px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .c-tpl{font-size:10px; color:var(--accent); opacity:.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .c-sub{font-size:10.5px; color:#5a6474; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .case-more{text-align:center; padding:20px 0 6px; font-size:11.5px; color:#5a6474}
+
+  /* ---------- 案例详情 ---------- */
+  .case-detail{width:1000px; max-width:95vw; height:86vh; display:flex; flex-direction:column}
+  .case-body{
+    flex:1; overflow-y:auto; padding:18px 20px; align-items:start;
+    display:grid; grid-template-columns:minmax(0,0.95fr) minmax(0,1.05fr); gap:22px;
+  }
+  .case-video{width:100%; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:10px; display:block}
+  .cmeta{font-size:11.5px; line-height:1.95; color:var(--dim)}
+  .cmeta b{color:var(--fg); font-weight:600}
+  .csec{font-size:11px; color:var(--dim); font-weight:600; margin:16px 0 8px; display:flex; align-items:center; gap:6px}
+  .csec::before{content:''; width:3px; height:11px; background:var(--accent); border-radius:2px}
+  .cprompt{
+    background:#11141a; border:1px solid var(--line); border-radius:9px; padding:12px 14px;
+    font-family:Consolas,Monaco,monospace; font-size:12px; line-height:1.75; color:#c9d1d9;
+    white-space:pre-wrap; word-break:break-word; max-height:300px; overflow-y:auto;
+  }
+  .cretest{
+    display:flex; align-items:center; gap:9px; padding:9px 12px; background:#11141a;
+    border:1px solid var(--line); border-radius:8px; margin-bottom:7px; font-size:11.5px; flex-wrap:wrap;
+  }
+  .cretest .v{font-weight:600}
+  .v.good{color:var(--ok)} .v.mid{color:var(--warn)} .v.bad{color:var(--bad)}
+  .clink{color:var(--accent); text-decoration:none; font-size:11.5px}
+  .clink:hover{text-decoration:underline}
+  .ctagline{font-size:10.5px; color:#5a6474}
+  @media (max-width:900px){ .case-body{grid-template-columns:1fr} }
+
   ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:#2f3542; border-radius:4px}
@@ -233,15 +322,27 @@
 <!-- ============ 主区 ============ -->
 <main class="main">
   <div class="top">
-    <div class="title">💬 生成分镜提示词</div>
-    <span class="chip" id="memChip" style="display:none" onclick="clearMemory()"
-          title="它记得上面聊过什么。点这里可以清空记忆，重新开始。">🧠 记忆 0 轮</span>
-    <span style="font-size:11.5px;color:var(--dim);margin-left:2px">
-      <span class="dot"></span>自动选技能 · 自动质检
+    <div class="tabs">
+      <div class="tab active" id="tabChat" onclick="switchView('chat')">💬 生成分镜提示词</div>
+      <div class="tab" id="tabCases" onclick="switchView('cases')">🎬 案例库<span class="n" id="tabCaseCount"></span></div>
+    </div>
+
+    <span id="chatTools" style="flex:1;display:flex;align-items:center;gap:12px;min-width:0">
+      <span class="chip" id="memChip" style="display:none" onclick="clearMemory()"
+            title="它记得上面聊过什么。点这里可以清空记忆，重新开始。">🧠 记忆 0 轮</span>
+      <span style="font-size:11.5px;color:var(--dim)">
+        <span class="dot"></span>自动选技能 · 自动质检
+      </span>
+      <span style="flex:1"></span>
+      <span class="chip" onclick="clearFeed()">清空</span>
     </span>
-    <span class="chip" onclick="clearFeed()">清空</span>
+
+    <span id="caseTools" style="display:none;flex:1;font-size:11.5px;color:var(--dim);text-align:right">
+      <span class="dot"></span>数据源 data/cases.json · 点封面看完整 prompt
+    </span>
   </div>
 
+  <div class="view" id="chatView">
   <div class="feed" id="feed">
     <div class="feed-inner" id="feedInner">
       <div class="empty" id="empty">
@@ -267,6 +368,29 @@
       <span onclick="fill('整体再短一点，第二个镜头换成特写')">追问：再改改（生成后可用）</span>
     </div>
   </div>
+  </div><!-- /chatView -->
+
+  <!-- ============ 案例库 ============ -->
+  <div class="view" id="casesView" style="display:none">
+    <div class="case-tools">
+      <input class="case-search" id="cq" placeholder="搜标题、prompt 正文、作者……（输入后自动搜）"
+             oninput="onCaseSearch()">
+      <select class="case-sel" id="cqSort" onchange="onCaseSort()">
+        <option value="hot">按热度排序</option>
+        <option value="stable">按稳定度排序</option>
+        <option value="new">按发布先后</option>
+        <option value="title">按标题</option>
+      </select>
+      <button class="btn" onclick="resetCaseFilters()">清空筛选</button>
+    </div>
+
+    <div class="case-filters" id="caseFilters"></div>
+
+    <div class="case-scroll" id="caseScroll">
+      <div class="case-grid" id="caseGrid"></div>
+      <div class="case-more" id="caseMore"></div>
+    </div>
+  </div><!-- /casesView -->
 </main>
 
 <!-- ============ 设置弹窗 ============ -->
@@ -331,6 +455,19 @@
   </div>
 </div>
 
+<!-- ============ 案例详情弹窗 ============ -->
+<div class="mask" id="caseMask" onclick="if(event.target===this)closeCase()">
+  <div class="modal case-detail">
+    <div class="modal-head" id="caseHead">案例详情</div>
+    <div class="case-body" id="caseBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="copyCasePrompt()">复制完整 prompt</button>
+      <button class="btn" onclick="closeCase()">关闭</button>
+      <button class="btn primary" onclick="useCase()">用这条生成 ➤</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================== 状态 ============================== */
 /* 固定为「自动选技能 + 自动质检」，不再提供手动开关 */
@@ -340,6 +477,9 @@ const S = {
   history: [],      // 多轮对话记忆：[{role:'user'|'assistant', content:'...'}]
   lastSkills: [],   // 上一轮用过的技能，追问时后端靠它兜底
 };
+
+/* 当前视图：'chat' 生成 | 'cases' 案例库 */
+let CUR_VIEW = 'chat';
 
 /* 记忆上限：超过就丢最早的（后端还会再取最近 8 条，这里留宽一点当缓冲区） */
 const HISTORY_MAX = 16;
@@ -364,9 +504,9 @@ function updateMemChip(){
   const chip = document.getElementById('memChip');
   if(!chip) return;
   const rounds = Math.floor(S.history.length / 2);
-  if(rounds <= 0){ chip.style.display = 'none'; return; }
-  chip.style.display = '';
   chip.textContent = `🧠 记忆 ${rounds} 轮`;
+  // 只在聊天视图里显示记忆胶囊
+  chip.style.display = (rounds > 0 && CUR_VIEW === 'chat') ? '' : 'none';
 }
 
 function clearMemory(){
@@ -790,6 +930,312 @@ async function runUpdate(){
     btn.disabled = false;
     btn.textContent = '检查更新';
   }
+}
+
+/* ============================== 视图切换 ============================== */
+function switchView(v){
+  CUR_VIEW = v;
+  const chat = (v === 'chat');
+  document.getElementById('chatView').style.display = chat ? '' : 'none';
+  document.getElementById('casesView').style.display = chat ? 'none' : '';
+  document.getElementById('chatTools').style.display = chat ? '' : 'none';
+  document.getElementById('caseTools').style.display = chat ? 'none' : '';
+  document.getElementById('tabChat').classList.toggle('active', chat);
+  document.getElementById('tabCases').classList.toggle('active', !chat);
+  updateMemChip();
+  if(chat){
+    document.getElementById('input').focus();
+  }else if(!C.inited){
+    loadCases(true);
+  }
+}
+
+/* ============================== 案例库 ============================== */
+/* 数据来自 /api/cases（轻量列表）+ /api/cases/{slug}（完整 prompt）。
+   缩略图全部懒加载，视频只在打开详情时才创建 —— 834 条一次全渲染会把浏览器拖死。 */
+
+const CASE_PAGE = 60;
+const CASE_VERDICT = {
+  reproduced:  { t:'复现成功', c:'good' },
+  degraded:    { t:'有降级',   c:'mid'  },
+  failed:      { t:'复现失败', c:'bad'  },
+  inconclusive:{ t:'不确定',   c:'mid'  },
+};
+
+const C = {
+  items: [], total: 0, offset: 0,
+  loading: false, hasMore: true, inited: false,
+  facets: null, detail: null,
+  sel: { model:'', template:'', level:'', creator:'' },
+  q: '', sort: 'hot',
+  timer: null,
+};
+
+function csUrl(){
+  const p = new URLSearchParams();
+  if(C.q) p.set('q', C.q);
+  p.set('sort', C.sort);
+  for(const k in C.sel){ if(C.sel[k]) p.set(k, C.sel[k]); }
+  p.set('offset', C.offset);
+  p.set('limit', CASE_PAGE);
+  return '/api/cases?' + p.toString();
+}
+
+async function loadCases(reset){
+  if(C.loading) return;
+
+  if(reset){
+    C.offset = 0; C.items = []; C.hasMore = true;
+    document.getElementById('caseGrid').innerHTML = '';
+    document.getElementById('caseMore').textContent = '读取中…';
+  }
+  if(!C.hasMore) return;
+
+  C.loading = true;
+  try{
+    const resp = await fetch(csUrl());
+    if(!resp.ok){
+      // 404 基本都是「服务进程还是旧代码」——静态页从磁盘现读，接口却是启动时注册的
+      const e = await resp.json().catch(()=>({}));
+      throw new Error(
+        (e.detail ? e.detail + ' — ' : '') + 'HTTP ' + resp.status
+        + (resp.status === 404 ? '（多半是服务还在跑改代码之前的进程，重启一下 run.py）' : '')
+      );
+    }
+    const r = await resp.json();
+    const items = Array.isArray(r.items) ? r.items : [];
+
+    if(!C.inited){
+      C.inited = true;
+      const n = r.dataVersion && r.dataVersion.caseCount;
+      if(n) document.getElementById('tabCaseCount').textContent = n;
+    }
+    if(!C.facets && r.facets){ C.facets = r.facets; renderCaseFilters(); }
+
+    C.total = r.total;
+    C.items = C.items.concat(items);
+    C.offset = C.items.length;
+    C.hasMore = r.hasMore;
+
+    document.getElementById('caseGrid').insertAdjacentHTML('beforeend', items.map(caseCard).join(''));
+    document.getElementById('caseMore').textContent = C.hasMore
+      ? '滚动到底自动加载下一批'
+      : (C.total ? `— 共 ${C.total} 条，已经到底了 —` : '没有符合条件的案例，换个词试试');
+  }catch(e){
+    document.getElementById('caseMore').textContent = '加载失败：' + e.message;
+  }finally{
+    C.loading = false;
+  }
+}
+
+function caseCard(c){
+  const lvl = c.level === 'L2' ? ' l2' : '';
+  const heat = (c.heat !== null && c.heat !== undefined)
+    ? `<span class="c-hot">热度 ${Math.round(c.heat)}</span>` : '';
+  const tpl = c.templateName ? `<div class="c-tpl">${escapeHtml(c.templateName)}</div>` : '';
+  const rt = c.retestCount ? ` · 复现 ${c.retestCount}` : '';
+  return `<div class="c-card" onclick="openCase('${escapeHtml(c.slug)}')" title="${escapeHtml(c.title)}">
+    <div class="c-thumb">
+      <div class="ph">封面读取中</div>
+      <img loading="lazy" src="${escapeHtml(c.poster)}" alt=""
+           onload="this.classList.add('on');this.previousElementSibling.style.display='none'"
+           onerror="var p=this.previousElementSibling; if(p)p.textContent='封面加载失败'; this.remove()">
+      <span class="c-tag${lvl}">Seedance ${escapeHtml(c.model)}${c.level ? ' · ' + escapeHtml(c.level) : ''}</span>
+      ${heat}
+    </div>
+    <div class="c-info">
+      <div class="c-title">${escapeHtml(c.title)}</div>
+      ${tpl}
+      <div class="c-sub">${escapeHtml(c.creator || '—')}${rt}</div>
+    </div>
+  </div>`;
+}
+
+function renderCaseFilters(){
+  const f = C.facets;
+  if(!f || !Array.isArray(f.models) || !Array.isArray(f.templates)) return;
+  f.levels = Array.isArray(f.levels) ? f.levels : [];
+  f.creators = Array.isArray(f.creators) ? f.creators : [];
+  const chip = (k, v, label, n) =>
+    `<span class="fchip${C.sel[k] === v ? ' active' : ''}" data-k="${k}" data-v="${escapeHtml(v)}">${label}${n ? `<span class="n">${n}</span>` : ''}</span>`;
+
+  const l2 = (f.levels.find(x=>x.v === 'L2') || {}).n || 0;
+  const l1 = (f.levels.find(x=>x.v === 'L1') || {}).n || 0;
+
+  const rows = [
+    `<div class="frow"><span class="fl">版本</span>`
+      + chip('model','','全部', f.models.reduce((a,b)=>a+b.n,0))
+      + f.models.map(m=>chip('model', m.v, 'Seedance ' + m.v, m.n)).join('')
+      + `<span style="width:8px"></span><span class="fl" style="min-width:auto">证据</span>`
+      + chip('level','L2','L2 人审实测', l2)
+      + chip('level','L1','L1', l1)
+    + `</div>`,
+    `<div class="frow"><span class="fl">分类</span>`
+      + chip('template','','全部', f.templates.reduce((a,b)=>a+b.n, 0))
+      + f.templates.map(t=>chip('template', t.id, escapeHtml(t.name), t.n)).join('')
+    + `</div>`,
+    `<div class="frow"><span class="fl">作者</span>`
+      + chip('creator','','全部', '')
+      + f.creators.slice(0, 14).map(c=>chip('creator', c.v, escapeHtml(c.v), c.n)).join('')
+    + `</div>`,
+  ];
+
+  const box = document.getElementById('caseFilters');
+  box.innerHTML = rows.join('');
+  box.querySelectorAll('.fchip').forEach(el=>{
+    el.onclick = ()=>{
+      const k = el.dataset.k, v = el.dataset.v;
+      C.sel[k] = (C.sel[k] === v) ? '' : v;      // 再点一次 = 取消
+      box.querySelectorAll(`.fchip[data-k="${k}"]`)
+         .forEach(x=>x.classList.toggle('active', x.dataset.v === C.sel[k]));
+      loadCases(true);
+    };
+  });
+}
+
+function onCaseSearch(){
+  clearTimeout(C.timer);
+  C.timer = setTimeout(()=>{ C.q = document.getElementById('cq').value.trim(); loadCases(true); }, 300);
+}
+
+function onCaseSort(){
+  C.sort = document.getElementById('cqSort').value;
+  loadCases(true);
+}
+
+function resetCaseFilters(){
+  C.q = ''; C.sort = 'hot';
+  C.sel = { model:'', template:'', level:'', creator:'' };
+  document.getElementById('cq').value = '';
+  document.getElementById('cqSort').value = 'hot';
+  renderCaseFilters();
+  loadCases(true);
+}
+
+document.getElementById('caseScroll').addEventListener('scroll', e=>{
+  const el = e.target;
+  if(el.scrollTop + el.clientHeight > el.scrollHeight - 400) loadCases(false);
+});
+
+/* ---------- 详情 ---------- */
+async function openCase(slug){
+  const head = document.getElementById('caseHead');
+  const body = document.getElementById('caseBody');
+  head.innerHTML = '案例详情';
+  body.innerHTML = '<div style="padding:40px;color:#5a6474;font-size:12.5px">读取中…</div>';
+  document.getElementById('caseMask').classList.add('show');
+
+  try{
+    const c = await fetch('/api/cases/' + encodeURIComponent(slug)).then(r=>r.json());
+    if(c.detail) throw new Error(c.detail);
+    C.detail = c;
+    renderCase(c);
+  }catch(e){
+    body.innerHTML = `<div style="color:var(--bad);font-size:12.5px">打不开这条案例：${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function closeCase(){
+  document.getElementById('caseMask').classList.remove('show');
+  document.getElementById('caseBody').innerHTML = '';   // 连视频一起清掉，免得后台还在播
+  C.detail = null;
+}
+
+function renderCase(c){
+  document.getElementById('caseHead').innerHTML =
+    escapeHtml(c.title).slice(0, 70)
+    + '<span style="float:right;cursor:pointer;color:var(--dim);font-weight:400" onclick="closeCase()">✕ 关闭</span>';
+
+  const meta = [];
+  const ver = (c.models && c.models.length > 1) ? `（${c.models.join('、')}）` : '';
+  meta.push(`版本 <b>${escapeHtml(c.model)}</b>${escapeHtml(ver)}`);
+  if(c.templateName) meta.push('类别 <b>' + escapeHtml(c.templateName) + '</b>');
+  if(c.evidenceLevel) meta.push('证据 <b>' + escapeHtml(c.evidenceLevel) + '</b>');
+  if(c.stabilityScore !== null && c.stabilityScore !== undefined) meta.push('稳定度 <b>' + Math.round(c.stabilityScore) + '</b>');
+  if(c.heatScore !== null && c.heatScore !== undefined) meta.push('热度 <b>' + Math.round(c.heatScore) + '</b>');
+  meta.push('作者 <b>' + escapeHtml(c.creator || '—') + '</b>');
+  if(c.publishedAt) meta.push('发布 ' + escapeHtml(String(c.publishedAt).slice(0, 10)));
+
+  const retests = (c.retests || []).map(r=>{
+    const v = CASE_VERDICT[r.verdict] || { t: r.verdict || '—', c: 'mid' };
+    return `<div class="cretest">
+      <span class="v ${v.c}">${escapeHtml(v.t)}</span>
+      <span style="color:var(--dim)">${escapeHtml(r.model)}</span>
+      ${r.score !== null && r.score !== undefined ? `<span style="color:var(--dim)">${Math.round(r.score)} 分</span>` : ''}
+      <span style="color:#5a6474">${escapeHtml(String(r.testedAt).slice(0, 10))}</span>
+      <span style="flex:1"></span>
+      ${r.artifactUrl ? `<a class="clink" href="${escapeHtml(r.artifactUrl)}" target="_blank" rel="noreferrer">看复现产物 →</a>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('caseBody').innerHTML = `
+    <div>
+      <video class="case-video" controls preload="none"
+             poster="${escapeHtml(c.posterUrl)}" src="${escapeHtml(c.mediaUrl)}"></video>
+      <div class="cmeta" style="margin-top:12px">${meta.join(' ｜ ')}</div>
+
+      <div class="csec">这条案例在讲什么</div>
+      <div style="font-size:12.5px;line-height:1.85;color:#c9d1d9">${escapeHtml(c.summary || '（上游没给摘要）')}</div>
+
+      ${(c.tags || []).length ? `<div class="ctagline" style="margin-top:10px">标签 ${c.tags.map(t=>escapeHtml(t)).join(' · ')}</div>` : ''}
+
+      ${retests ? `<div class="csec">复现验证（换个模型再跑一遍的结果）</div>${retests}` : ''}
+    </div>
+
+    <div>
+      <div class="csec" style="margin-top:0">完整 prompt（${c.promptChars} 字符 · ${c.promptLines} 行）</div>
+      <div class="cprompt">${escapeHtml(c.promptFull || '（空）')}</div>
+      <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap">
+        <a class="clink" href="${escapeHtml(c.goodcaseUrl)}" target="_blank" rel="noreferrer">在 goodcase.ai 看这条 →</a>
+        <a class="clink" href="${escapeHtml(c.sourceUrl)}" target="_blank" rel="noreferrer">原作者原帖 →</a>
+      </div>
+      <div class="ctagline" style="margin-top:12px;line-height:1.85">
+        想要一条类似的？点下面的「用这条生成」，这条的写法会带回聊天窗口，让智能体照着它给你写一条新的。
+      </div>
+    </div>`;
+}
+
+async function copyCasePrompt(){
+  const t = (C.detail && C.detail.promptFull) || '';
+  if(!t){ toast('还没加载出来'); return; }
+  try{
+    await navigator.clipboard.writeText(t);
+    toast(`已复制完整 prompt（${t.length} 字符）`);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast(`已复制完整 prompt（${t.length} 字符）`); }
+    catch(e2){ toast('复制失败，请手动选中文案复制'); }
+    ta.remove();
+  }
+}
+
+function useCase(){
+  const c = C.detail;
+  if(!c){ toast('还没加载出来'); return; }
+
+  const LIMIT = 6000;                       // 太长就节选，别把上下文顶爆
+  const full = c.promptFull || '';
+  const body = full.slice(0, LIMIT);
+  const cut = full.length > LIMIT ? '\n（以上为节选，完整版可用「复制完整 prompt」拿到）' : '';
+  const msg =
+`参考下面这条案例的写法，帮我写一条同类型的分镜提示词。
+
+【参考案例】${c.title}
+【类别】${c.templateName || '—'}
+【参考原文】
+${body}${cut}
+
+【我的需求】把这句话换成你的主题（产品/人物/场景/时长/画幅），然后直接发送。`;
+
+  closeCase();
+  switchView('chat');
+  const el = document.getElementById('input');
+  el.value = msg;
+  autoGrow();
+  el.focus();
+  toast('已放进输入框 · 把【我的需求】改成你的主题再发送');
 }
 
 /* ============================== 杂项 ============================== */

@@ -132,10 +132,21 @@ python run.py --reload                 # 开发模式，改代码自动重启
 
 换全新话题时它会自己切过去，不会被上一轮绑死。
 
+### 案例库（顶栏第二个页签）
+
+顶栏切到「🎬 案例库」，834 条上游案例直接翻：
+
+- **卡片墙**：封面 + 中文标题 + 版本/证据徽章 + 热度，滚动到底自动加载下一批（一批 60 条）
+- **筛选**：按版本（2.5 / 2.0）、按 27 个模板分类、按作者、只看 L2 人审实测；顶部搜索框能搜标题、prompt 正文和作者
+- **详情**：点封面打开，左边视频 + 复现验证记录，右边完整 prompt
+- **用这条生成**：详情里点这个按钮，这条案例的写法会自动带回聊天输入框，改一下【我的需求】就能让智能体照着写一条新的
+- 数据直接读 `data/cases.json`，**点「检查更新」拉到新案例后这里自动就有**，不用额外操作
+
 ### 页面上的东西
 
 | 位置 | 是什么 |
 |---|---|
+| 顶栏 `💬 生成分镜提示词 / 🎬 案例库` | 两个视图来回切，聊天记录不会丢 |
 | 顶栏 `🧠 记忆 N 轮` | 它现在记得几轮对话。点一下清空记忆 |
 | 顶栏 `清空` | 清空页面 + 清空记忆 |
 | 左侧技能列表 | 当前加载的 31 个技能。**点一下能看详情**（干什么用的、带不带参考资料、正文开头） |
@@ -363,13 +374,18 @@ python scripts/sync_upstream.py --check    # 只看有没有新数据，一个�
 python scripts/sync_upstream.py --force-regen   # 数据没变也重生成技能
 ```
 
-它做三件事：
+它做四件事：
 
 1. 拉 `data/cases.json`（案例）、`data/case-taxonomy.json`（归类表）、`data/style-library.json`（模板库）、`data/skills.json`
 2. 和本地**逐字节比对**（忽略行尾差异），**只有真变了才落盘**
 3. 数据有变化时，重生成 14 个自建技能 + 从上游拉 13 个上游技能的 `SKILL.md` / `cases.md`
+4. 拉 `EXTRA_FILES` 里的「孤儿文件」（原因见下）
 
 之后把结果写进 `data/update-status.json`。
+
+> **为什么要第 4 步**：`skills/seedance-prompt-library/references/style-library.md`（141 KB）是从上游
+> `data/style-library.json` 渲染出来的，但本项目**没有任何脚本生成它**，而它所在的技能又在「不碰」名单里。
+> 结果就是上游数据更新了、这个文件却永远停在搬运那天。`EXTRA_FILES` 专门补这个缺口。
 
 ### 那行字怎么读
 
@@ -388,11 +404,12 @@ python scripts/sync_upstream.py --force-regen   # 数据没变也重生成技能
 
 | | |
 |---|---|
-| **会覆盖** | `data/` 下那 4 个数据文件；14 个自建技能的 `SKILL.md` + `references/cases.md`；13 个上游技能的这两个文件 |
-| **不碰** | `seedance-prompt-lint`（我们改造过的）、`prompt-library`、`storyboard-writer`、`production-workflow`；`data/templates-local.json`、`data/skills-extra.json`（本项目自己的） |
+| **会覆盖** | `data/` 下那 4 个数据文件；14 个自建技能的 `SKILL.md` + `references/cases.md`；13 个上游技能的这两个文件；`EXTRA_FILES` 里的孤儿文件 |
+| **不碰** | `seedance-prompt-lint`（我们改造过的）、`prompt-library`、`storyboard-writer`、`production-workflow` 的 SKILL.md 与 cases.md；`data/templates-local.json`、`data/skills-extra.json`（本项目自己的）；`docs/`、`backup_awesome/`、`static/`、`app/` |
 
 - **没新数据时，技能文件一个字节都不会变**（已验证幂等：连跑两次哈希完全一致）
 - 拉到的东西**必须是合法 JSON 才会落盘**，拿到坏数据不会覆盖本地
+- 孤儿文件另有两道校验：**体积 ≥ 4 KB** 且 **以 `#` 开头**（挡住上游返回 HTML 错误页之类的情况）
 - 源顺序：默认走 `gh-proxy.com` 镜像（实测 ~1.9 秒），失败自动回退直连
   （实测直连 `raw.githubusercontent.com` **首次要 60 秒**，所以不作为首选）
 
@@ -410,6 +427,8 @@ python scripts/sync_upstream.py --force-regen   # 数据没变也重生成技能
 | POST | `/api/stream` | SSE 流式，能看每步进度（前端用的这个） |
 | GET | `/api/update/status` | 上次检查上游的时间 + 当前数据版本（前端左下角显示的那行字） |
 | POST | `/api/update/run` | 手动检查上游并同步，约 10~20 秒返回（左下角「检查更新」按钮） |
+| GET | `/api/cases` | 案例库列表：分页 + 搜索（q）+ 筛选（model / template / level / creator）+ 排序（sort），只返回轻量字段，封面/标题/热度等 |
+| GET | `/api/cases/{slug}` | 单条案例详情：完整 prompt、复现记录、来源链接（案例库详情弹窗用的这个） |
 
 `/api/chat` 和 `/api/stream` 的请求体：
 
