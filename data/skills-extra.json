@@ -1,0 +1,76 @@
+{
+  "$comment": "本项目追加的独立技能配置（upstream 的 data/skills.json 里没有的这些）。一个条目 = 一个独立技能：脚本会按 templateId 从合并后的模板库取规范，从 cases.json + case-taxonomy.json 取案例，生成 skills/<id>/{SKILL.md, references/cases.md}。title / description / install / url 由脚本自动补，不用写。triggers 是中文触发词，写进 SKILL.md 的 description 里，供选技能时匹配。",
+  "$note": "排序按可用案例数从多到少，方便按优先级逐个核对。",
+  "skills": [
+    {
+      "id": "seedance-handheld-ugc-vlog",
+      "templateId": "handheld-ugc-vlog",
+      "triggers": ["手持", "UGC", "vlog", "手机拍摄", "生活记录"]
+    },
+    {
+      "id": "seedance-combat-choreography",
+      "templateId": "combat-choreography",
+      "triggers": ["打斗", "动作戏", "格斗", "武打", "连招"]
+    },
+    {
+      "id": "seedance-cinematic-narrative-short",
+      "templateId": "cinematic-narrative-short",
+      "triggers": ["剧情短片", "叙事", "故事短片", "电影感剧情"]
+    },
+    {
+      "id": "seedance-product-commercial-shotlist",
+      "templateId": "product-commercial-shotlist",
+      "triggers": ["产品广告", "商业广告", "产品展示", "TVC"]
+    },
+    {
+      "id": "seedance-anime-style-lock",
+      "templateId": "anime-style-lock",
+      "triggers": ["动漫", "二次元", "画风", "动画风格"]
+    },
+    {
+      "id": "seedance-process-transformation-montage",
+      "templateId": "process-transformation-montage",
+      "triggers": ["过程蒙太奇", "改造", "延时", "制作流程", "组装"]
+    },
+    {
+      "id": "seedance-music-beat-sync-mv",
+      "templateId": "music-beat-sync-mv",
+      "triggers": ["MV", "卡点", "音乐", "节奏剪辑"]
+    },
+    {
+      "id": "seedance-ugc-creator-review",
+      "templateId": "ugc-creator-review",
+      "triggers": ["口播", "测评", "开箱", "种草", "带货"]
+    },
+    {
+      "id": "seedance-pov-continuous-take",
+      "templateId": "pov-continuous-take",
+      "triggers": ["第一人称", "一镜到底", "POV", "运动相机", "GoPro"]
+    },
+    {
+      "id": "seedance-dialogue-performance-beats",
+      "templateId": "dialogue-performance-beats",
+      "triggers": ["对白", "口型同步", "台词", "表演"]
+    },
+    {
+      "id": "seedance-stop-motion-cadence",
+      "templateId": "stop-motion-cadence",
+      "triggers": ["定格动画", "逐帧", "停格", "黏土"]
+    },
+    {
+      "id": "seedance-character-reference-lock",
+      "templateId": "character-reference-lock",
+      "triggers": ["参考图", "角色锁定", "人物一致性", "形象固定"]
+    },
+    {
+      "id": "seedance-time-freeze-rewind",
+      "templateId": "time-freeze-rewind",
+      "triggers": ["时间冻结", "倒放", "子弹时间", "时间停止"]
+    },
+    {
+      "id": "seedance-timeline-shot-script",
+      "templateId": "timeline-shot-script",
+      "triggers": ["逐秒分镜", "时间轴", "时间码", "分镜脚本"]
+    }
+  ]
+}

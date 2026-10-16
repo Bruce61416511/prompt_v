@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>提示词智能体 · Skill 驱动</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --fg:#e8eaed; --dim:#9aa3b2; --accent:#4f8cff; --accent2:#7c5cff;
+    --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--fg); height:100vh; display:flex; overflow:hidden;
+  }
+
+  /* ---------- 左侧栏 ---------- */
+  .side{
+    width:300px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column;
+  }
+  .side-head{padding:18px 18px 14px; border-bottom:1px solid var(--line)}
+  .side-head h1{font-size:15px; font-weight:700; letter-spacing:.3px}
+  .side-head p{font-size:11px; color:var(--dim); margin-top:5px; line-height:1.5}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle}
+
+  .side-body{flex:1; overflow-y:auto; padding:12px}
+  .sec-title{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; margin:8px 6px 8px}
+
+  /* ---------- 技能列表（紧凑：只显名字，点开看详情） ---------- */
+  .skill{
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    padding:9px 11px; margin-bottom:6px; cursor:pointer; transition:.13s;
+    display:flex; align-items:center; gap:8px;
+  }
+  .skill:hover{border-color:#3a4150; background:#222733}
+  .skill-name{font-size:12px; font-weight:600; flex:1; word-break:break-all; line-height:1.4}
+  .skill-check{
+    font-size:10px; color:var(--ok); flex-shrink:0; font-weight:700;
+    width:14px; height:14px; display:grid; place-items:center;
+    background:#12261a; border-radius:50%; line-height:1;
+  }
+  .skill-arrow{font-size:10px; color:#3a4150; flex-shrink:0}
+
+  /* ---------- 技能详情弹窗 ---------- */
+  .sk-detail{width:680px; max-width:94vw; max-height:84vh; display:flex; flex-direction:column}
+  .sk-detail-body{padding:18px 20px; overflow-y:auto; flex:1}
+  .sk-h{display:flex; align-items:center; gap:9px; margin-bottom:5px; flex-wrap:wrap}
+  .sk-h .nm{font-size:15px; font-weight:700; color:var(--fg); font-family:Consolas,Monaco,monospace}
+  .sk-sub{font-size:11px; color:#5a6474; margin-bottom:14px; font-family:Consolas,Monaco,monospace}
+  .sk-label{
+    font-size:11px; color:var(--dim); font-weight:600; margin:14px 0 7px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .sk-label::before{content:''; width:3px; height:11px; background:var(--accent); border-radius:2px}
+  .sk-text{
+    font-size:12.5px; line-height:1.8; color:#c9d1d9; background:#11141a;
+    border:1px solid var(--line); border-radius:9px; padding:12px 14px; white-space:pre-wrap; word-break:break-word;
+  }
+  .sk-ref{
+    display:flex; align-items:center; gap:8px; padding:8px 11px; background:#11141a;
+    border:1px solid var(--line); border-radius:8px; margin-bottom:6px; font-size:12px;
+  }
+  .sk-ref .rn{flex:1; font-family:Consolas,Monaco,monospace; color:#c9d1d9; word-break:break-all}
+  .sk-ref .rs{font-size:10.5px; color:#5a6474; flex-shrink:0}
+  .sk-body-wrap{position:relative}
+  .sk-body-box{
+    max-height:260px; overflow-y:auto; font-size:12px; line-height:1.75; color:var(--dim);
+    background:#11141a; border:1px solid var(--line); border-radius:9px; padding:12px 14px;
+    white-space:pre-wrap; word-break:break-word; font-family:Consolas,Monaco,monospace;
+  }
+  .sk-fade{
+    position:absolute; bottom:0; left:0; right:0; height:56px; pointer-events:none;
+    background:linear-gradient(transparent,#11141a); border-radius:0 0 9px 9px;
+  }
+
+  .side-foot{padding:12px; border-top:1px solid var(--line); display:flex; gap:8px}
+
+  /* ---------- 主区 ---------- */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0}
+  .top{
+    height:52px; border-bottom:1px solid var(--line); display:flex; align-items:center;
+    padding:0 20px; gap:12px; background:var(--panel); flex-shrink:0;
+  }
+  .top .title{font-size:13px; font-weight:600; flex:1}
+  .chip{
+    font-size:11px; padding:3px 9px; border-radius:20px; background:#232833; color:var(--dim);
+    border:1px solid var(--line); cursor:pointer; transition:.15s;
+  }
+  .chip:hover{border-color:#3a4150; color:var(--fg)}
+  .chip.active{background:#1b2436; border-color:var(--accent); color:var(--accent)}
+
+  .feed{flex:1; overflow-y:auto; padding:24px 20px 12px}
+  .feed-inner{max-width:860px; margin:0 auto}
+
+  .msg{margin-bottom:20px; animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .msg.user{display:flex; justify-content:flex-end}
+  .msg.user .bubble{
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff;
+    padding:10px 15px; border-radius:14px 14px 3px 14px; max-width:72%; font-size:13.5px; line-height:1.65;
+  }
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden; margin-bottom:14px;
+  }
+  .card-head{
+    padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px;
+    font-size:11.5px; color:var(--dim); background:var(--panel2);
+  }
+  .card-head b{color:var(--fg); font-weight:600; font-size:12px}
+  .card-body{padding:14px 16px; font-size:13px; line-height:1.8; white-space:pre-wrap; word-break:break-word}
+  .card-body.md{white-space:normal}
+  .card-body.md p{margin:0 0 9px}
+  .card-body.md h1,.card-body.md h2,.card-body.md h3{
+    font-size:13.5px; margin:14px 0 7px; padding-bottom:5px; border-bottom:1px solid var(--line); font-weight:700;
+  }
+  .card-body.md code{
+    background:#232833; padding:1.5px 5px; border-radius:4px; font-size:12px;
+    font-family:Consolas,Monaco,monospace; color:#ffb86c;
+  }
+  .card-body.md pre{background:#11141a; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; margin:9px 0}
+  .card-body.md pre code{background:none; padding:0; color:#c9d1d9}
+  .card-body.md strong{color:#fff; font-weight:700}
+  .card-body.md hr{border:none; border-top:1px solid var(--line); margin:14px 0}
+  .card-body.md ul{padding-left:20px; margin:7px 0}
+  .card-body.md li{margin:3px 0}
+  .card-body.md table{border-collapse:collapse; width:100%; margin:9px 0; font-size:12px}
+  .card-body.md th,.card-body.md td{border:1px solid var(--line); padding:6px 9px; text-align:left}
+  .card-body.md th{background:var(--panel2); font-weight:600}
+
+  /* 步骤条 */
+  .steps{display:flex; gap:6px; padding:11px 14px; flex-wrap:wrap; align-items:center}
+  .step{
+    font-size:11px; padding:4px 10px; border-radius:6px; background:#232833; color:#5a6474;
+    display:flex; align-items:center; gap:5px; transition:.2s;
+  }
+  .step.done{background:#12261a; color:var(--ok)}
+  .step.doing{background:#1b2436; color:var(--accent)}
+  .step.err{background:#2a1517; color:var(--bad)}
+  .step.skip{opacity:.38; text-decoration:line-through}
+  .arrow{color:#3a4150; font-size:10px}
+
+  /* 输入框 */
+  .composer{padding:14px 20px 20px; flex-shrink:0; background:linear-gradient(transparent,var(--bg) 40%)}
+  .composer-inner{
+    max-width:860px; margin:0 auto; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:10px 12px; display:flex; gap:10px; align-items:flex-end; transition:.15s;
+  }
+  .composer-inner:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,140,255,.12)}
+  textarea{
+    flex:1; background:none; border:none; outline:none; color:var(--fg); resize:none;
+    font-family:inherit; font-size:13.5px; line-height:1.65; max-height:150px; min-height:24px;
+  }
+  textarea::placeholder{color:#5a6474}
+  .send{
+    width:34px; height:34px; border-radius:9px; border:none; cursor:pointer; flex-shrink:0;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:15px;
+    display:grid; place-items:center; transition:.15s;
+  }
+  .send:hover{filter:brightness(1.12)}
+  .send:disabled{opacity:.35; cursor:not-allowed}
+
+  .hint{max-width:860px; margin:9px auto 0; font-size:11px; color:#5a6474; display:flex; gap:8px; flex-wrap:wrap}
+  .hint span{background:#1a1e26; padding:3px 8px; border-radius:5px; cursor:pointer; border:1px solid transparent}
+  .hint span:hover{border-color:var(--line); color:var(--dim)}
+
+  .empty{text-align:center; padding:60px 20px; color:#5a6474}
+  .empty h2{font-size:16px; color:var(--dim); margin-bottom:9px; font-weight:600}
+  .empty p{font-size:12.5px; line-height:1.9}
+
+  /* 弹窗 */
+  .mask{
+    position:fixed; inset:0; background:rgba(0,0,0,.62); display:none;
+    align-items:center; justify-content:center; z-index:99; backdrop-filter:blur(3px);
+  }
+  .mask.show{display:flex}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:14px; width:440px; max-width:92vw; overflow:hidden}
+  .modal-head{padding:15px 18px; border-bottom:1px solid var(--line); font-size:13.5px; font-weight:600}
+  .modal-body{padding:18px; display:flex; flex-direction:column; gap:13px}
+  .field label{display:block; font-size:11.5px; color:var(--dim); margin-bottom:6px}
+  .field input{
+    width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    padding:9px 11px; color:var(--fg); font-size:12.5px; outline:none; font-family:inherit;
+  }
+  .field input:focus{border-color:var(--accent)}
+  .modal-foot{padding:13px 18px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:9px}
+  .btn{
+    padding:8px 17px; border-radius:8px; border:1px solid var(--line); background:var(--panel2);
+    color:var(--fg); font-size:12.5px; cursor:pointer; font-family:inherit; transition:.15s;
+  }
+  .btn:hover{border-color:#3a4150}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff}
+  .btn.sm{padding:6px 12px; font-size:11.5px; flex:1}
+
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#2f3542; border-radius:4px}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4150}
+</style>
+</head>
+<body>
+
+<!-- ============ 左侧 ============ -->
+<aside class="side">
+  <div class="side-head">
+    <h1>提示词智能体</h1>
+    <p><span class="dot"></span>已加载 <span id="skillCount">0</span> 个技能</p>
+  </div>
+  <div class="side-body">
+    <div class="sec-title">可用技能</div>
+    <div id="skillList"></div>
+  </div>
+  <div class="side-foot">
+    <button class="btn sm" onclick="reloadSkills()">重新扫描</button>
+    <button class="btn sm" onclick="openConfig()">设置</button>
+  </div>
+</aside>
+
+<!-- ============ 主区 ============ -->
+<main class="main">
+  <div class="top">
+    <div class="title">💬 生成分镜提示词</div>
+    <span class="chip" id="memChip" style="display:none" onclick="clearMemory()"
+          title="它记得上面聊过什么。点这里可以清空记忆，重新开始。">🧠 记忆 0 轮</span>
+    <span style="font-size:11.5px;color:var(--dim);margin-left:2px">
+      <span class="dot"></span>自动选技能 · 自动质检
+    </span>
+    <span class="chip" onclick="clearFeed()">清空</span>
+  </div>
+
+  <div class="feed" id="feed">
+    <div class="feed-inner" id="feedInner">
+      <div class="empty" id="empty">
+        <h2>说一句话，我给你分镜提示词</h2>
+        <p>
+          例如：<b>百芙乐后生元饮品，30秒，竖屏，主打对肠道好</b><br>
+          系统会自动挑出该用的技能包，按规范写成分镜提示词，再自检一遍。<br>
+          <b>它记得上下文</b> —— 写完可以接着说「再短一点」「第 2 个镜头换成特写」。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="composer">
+    <div class="composer-inner">
+      <textarea id="input" rows="1" placeholder="描述你要做的视频……也可以接着改：「再短一点」「换成口播版」"></textarea>
+      <button class="send" id="send" onclick="send()">➤</button>
+    </div>
+    <div class="hint">
+      <span onclick="fill('百芙乐后生元饮品，30秒，竖屏，主打对肠道好')">百芙乐后生元</span>
+      <span onclick="fill('瓶装可口可乐，运动完喝一口打嗝，30秒竖屏')">可口可乐运动</span>
+      <span onclick="fill('帮我质检这段提示词：画面里一个人拿着产品微笑')">试试质检</span>
+      <span onclick="fill('整体再短一点，第二个镜头换成特写')">追问：再改改（生成后可用）</span>
+    </div>
+  </div>
+</main>
+
+<!-- ============ 设置弹窗 ============ -->
+<div class="mask" id="mask">
+  <div class="modal">
+    <div class="modal-head">大模型设置</div>
+    <div class="modal-body">
+      <div class="field">
+        <label>接口地址（Base URL）</label>
+        <input id="cfgUrl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input id="cfgKey" type="password" placeholder="留空则不修改">
+      </div>
+      <div class="field">
+        <label>模型名</label>
+        <input id="cfgModel" placeholder="qwen-plus">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeConfig()">取消</button>
+      <button class="btn primary" onclick="saveConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 技能详情弹窗 ============ -->
+<div class="mask" id="skillMask" onclick="if(event.target===this)closeSkill()">
+  <div class="modal sk-detail">
+    <div class="modal-head">
+      技能详情
+      <span style="float:right;cursor:pointer;color:var(--dim);font-weight:400" onclick="closeSkill()">✕ 关闭</span>
+    </div>
+    <div class="sk-detail-body" id="skDetailBody"></div>
+    <div class="modal-foot">
+      <button class="btn primary" onclick="closeSkill()">知道了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================== 状态 ============================== */
+/* 固定为「自动选技能 + 自动质检」，不再提供手动开关 */
+const S = {
+  skills: [],
+  busy: false,
+  history: [],      // 多轮对话记忆：[{role:'user'|'assistant', content:'...'}]
+  lastSkills: [],   // 上一轮用过的技能，追问时后端靠它兜底
+};
+
+/* 记忆上限：超过就丢最早的（后端还会再取最近 8 条，这里留宽一点当缓冲区） */
+const HISTORY_MAX = 16;
+const HISTORY_MSG_CHARS = 6000;   // 单条助手回复入记忆前先截断，防止越聊越大
+
+/* ---------- 记忆（多轮上下文） ---------- */
+function rememberTurn(userText, res){
+  const g = res && res.generate;
+  if(!g || !g.content) return;          // 这一轮没产出东西，不记
+
+  S.history.push({role:'user', content:String(userText)});
+  S.history.push({role:'assistant', content:String(g.content).slice(0, HISTORY_MSG_CHARS)});
+
+  if(S.history.length > HISTORY_MAX){
+    S.history = S.history.slice(-HISTORY_MAX);
+  }
+  S.lastSkills = (res.skills_used || []).slice();
+  updateMemChip();
+}
+
+function updateMemChip(){
+  const chip = document.getElementById('memChip');
+  if(!chip) return;
+  const rounds = Math.floor(S.history.length / 2);
+  if(rounds <= 0){ chip.style.display = 'none'; return; }
+  chip.style.display = '';
+  chip.textContent = `🧠 记忆 ${rounds} 轮`;
+}
+
+function clearMemory(){
+  S.history = [];
+  S.lastSkills = [];
+  updateMemChip();
+  toast('记忆已清空，下一句当作新话题');
+}
+
+/* ============================== 技能列表 ============================== */
+async function loadSkills(){
+  const r = await fetch('/api/skills').then(r=>r.json());
+  S.skills = r.skills || [];
+  document.getElementById('skillCount').textContent = r.count;
+  document.getElementById('skillList').innerHTML = S.skills.map((s,i)=>`
+    <div class="skill" data-name="${s.name}" onclick="showSkill(${i})" title="点击查看功能">
+      <span class="skill-check">✓</span>
+      <div class="skill-name">${escapeHtml(s.name)}</div>
+      <span class="skill-arrow">›</span>
+    </div>`).join('');
+}
+
+/* ---------- 技能详情 ---------- */
+function showSkill(i){
+  const s = S.skills[i];
+  if(!s) return;
+
+  // 把 description 按句号/分号拆成易读的几行
+  const desc = (s.description || '（无描述）').trim();
+
+  // 正文：剥掉 markdown 大标题，只留开头一段做预览
+  const body = (s.body_preview || s.body || '').trim();
+
+  document.getElementById('skDetailBody').innerHTML = `
+    <div class="sk-h">
+      <span class="nm">${escapeHtml(s.name)}</span>
+      ${s.references.length?`<span class="skill-badge has-ref">+${s.references.length} 附件</span>`:''}
+    </div>
+    <div class="sk-sub">目录名 ${escapeHtml(s.dir_name)} ｜ 正文 ${(s.body_chars/1000).toFixed(1)}k 字符</div>
+
+    <div class="sk-label">这个技能是干什么的</div>
+    <div class="sk-text">${escapeHtml(desc)}</div>
+
+    ${s.references.length?`
+      <div class="sk-label">附带参考资料</div>
+      ${s.references.map(r=>`
+        <div class="sk-ref">
+          <span class="rn">${escapeHtml(r.name)}</span>
+          <span class="rs">${(r.size/1024).toFixed(0)} KB</span>
+          <span class="rs" style="color:${r.inlined?'var(--ok,#3fb950)':'var(--warn,#d29922)'}">
+            ${r.inlined?'自动加载':'按需读取'}
+          </span>
+        </div>`).join('')}
+      <div style="font-size:11px;color:#5a6474;line-height:1.7;margin-top:6px">
+        ${s.references.some(r=>r.inlined)
+          ? '标记「自动加载」的资料会随技能一起发给模型，模型直接看得到全文。'
+          : ''}
+        ${s.references.some(r=>!r.inlined)
+          ? '标记「按需读取」的资料体积较大，模型需要时会自己去取。'
+          : ''}
+      </div>
+    `:''}
+
+    <div class="sk-label">技能内容（开头部分）</div>
+    <div class="sk-body-wrap">
+      <div class="sk-body-box" id="skBodyBox">${escapeHtml(body||'（正文为空）')}</div>
+      <div class="sk-fade"></div>
+    </div>
+  `;
+  document.getElementById('skillMask').classList.add('show');
+}
+function closeSkill(){ document.getElementById('skillMask').classList.remove('show'); }
+
+async function reloadSkills(){
+  const r = await fetch('/api/skills/reload',{method:'POST'}).then(r=>r.json());
+  await loadSkills();
+  toast(`已重新扫描，${r.count} 个技能`);
+}
+
+/* ============================== 发送 ============================== */
+async function send(){
+  const el = document.getElementById('input');
+  const text = el.value.trim();
+  if(!text || S.busy) return;
+
+  S.busy = true;
+  document.getElementById('send').disabled = true;
+  el.value=''; el.style.height='auto';
+  document.getElementById('empty')?.remove();
+
+  addUser(text);
+  const box = addAgentCard();
+
+  // 步骤条
+  const stepsEl = box.querySelector('.steps');
+  const STEPS = [
+    ['picking','① 选技能'],['picked','② 加载技能'],
+    ['generating','③ 生成提示词'],['linting','④ 质检'],['done','完成']
+  ];
+  stepsEl.innerHTML = STEPS.map(([k,l],i)=>
+    `<span class="step" data-k="${k}">${l}</span>`+(i<STEPS.length-1?'<span class="arrow">›</span>':'')
+  ).join('');
+
+  const setStep = (k, cls) => {
+    const el = stepsEl.querySelector(`[data-k="${k}"]`);
+    if(el){ el.classList.remove('doing','done','err'); if(cls) el.classList.add(cls); }
+  };
+
+  // 不属于本次流水线的步骤，直接标灰——别让它一直"转圈"
+  const skipStep = (k) => {
+    const el = stepsEl.querySelector(`[data-k="${k}"]`);
+    if(el){ el.classList.remove('doing','done','err'); el.classList.add('skip'); }
+  };
+
+  const body = box.querySelector('.result');
+  const payload = {
+    message: text,
+    skills: null,                                       // 始终自动选技能
+    do_lint: true,                                      // 始终自动质检
+    history: S.history.length ? S.history.slice(-8) : null,   // 多轮上下文
+    last_skills: S.lastSkills.length ? S.lastSkills : null,   // 追问兜底用
+  };
+
+  try{
+    const resp = await fetch('/api/stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!resp.ok){
+      const e = await resp.json().catch(()=>({}));
+      throw new Error(e.detail || ('HTTP '+resp.status));
+    }
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value,{stream:true});
+      const lines = buf.split('\n\n');
+      buf = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        const ev = JSON.parse(line.slice(5).trim());
+        handle(ev);
+      }
+    }
+  }catch(err){
+    body.innerHTML = `<div style="color:var(--bad)">出错了：${escapeHtml(err.message)}</div>`;
+  }finally{
+    S.busy = false;
+    document.getElementById('send').disabled = false;
+  }
+
+  function handle(ev){
+    switch(ev.stage){
+      case 'picking': setStep('picking','doing'); break;
+
+      case 'no_skill':
+        skipStep('picked'); skipStep('generating'); skipStep('linting');
+        body.insertAdjacentHTML('beforeend',
+          `<div style="font-size:12.5px;color:var(--warn);margin-bottom:10px;line-height:1.7">
+             ⚠ ${escapeHtml(ev.reason || '没有找到能完成这个需求的技能')}<br>
+             <span style="color:var(--dim)">${escapeHtml(ev.hint || '换个说法描述，或在左侧手动勾选技能')}</span>
+           </div>`);
+        break;
+
+      case 'expanded':
+        body.insertAdjacentHTML('beforeend',
+          `<div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">
+             ⇢ 技能顺序整理：${escapeHtml((ev.from||[]).join('、'))} <span style="opacity:.5">→</span> <b style="color:var(--accent)">${escapeHtml((ev.to||[]).join('、'))}</b>
+           </div>`);
+        break;
+
+      case 'picked':
+        setStep('picking','done');
+        if(ev.skills?.length){
+          setStep('picked','done');
+          const srcMap = {user:'（手动指定）', reuse:'（沿用上一轮）'};
+          const src = srcMap[ev.source] || '';
+          const tip = ev.source === 'reuse'
+            ? '<div style="font-size:11px;color:#5a6474;margin-top:3px">这句话接着上一轮说，沿用了同样的技能。</div>'
+            : '';
+          body.insertAdjacentHTML('beforeend',
+            `<div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">
+              已加载技能${src}：${ev.skills.map(s=>`<b style="color:var(--accent)">${escapeHtml(s)}</b>`).join('、')}${tip}
+             </div>`);
+        }
+        break;
+
+      case 'generating': setStep('generating','doing'); break;
+      case 'generated': setStep('generating','done'); break;
+
+      case 'linting': setStep('linting','doing'); break;
+      case 'linted': setStep('linting','done'); break;
+
+      case 'lint_skipped':
+        skipStep('linting');
+        body.insertAdjacentHTML('beforeend',
+          `<div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">
+             — 本次没有选中质检技能，已跳过质检
+           </div>`);
+        break;
+
+      case 'done':
+        render(ev.result);
+        rememberTurn(text, ev.result);   // 记进上下文，下一句才能"接着改"
+        break;
+      case 'error':
+        body.innerHTML = `<div style="color:var(--bad)">${escapeHtml(ev.message)}</div>`;
+        stepsEl.querySelectorAll('.doing').forEach(e=>{e.classList.remove('doing');e.classList.add('err')});
+        break;
+    }
+  }
+
+  function render(res){
+    const g = res.generate;
+
+    // 没选出技能：不兜底，直接告诉用户该怎么做
+    if(!g){
+      body.innerHTML =
+        `<div style="font-size:13px;color:var(--warn);line-height:1.9">
+           ${escapeHtml(res.message || '没找到合适的技能来完成这个需求。').replace(/\n/g,'<br>')}
+         </div>`;
+      scrollBottom();
+      return;
+    }
+
+    let html = '';
+    html += section('🎬 分镜提示词', g.content, 'md');
+    html += metaLine(g);
+
+    if(res.lint){
+      html += section('🔍 质检报告', res.lint.content, 'md');
+    }
+    body.innerHTML = html;
+    scrollBottom();
+  }
+}
+
+/* ============================== 渲染工具 ============================== */
+function addUser(text){
+  const el = document.createElement('div');
+  el.className='msg user';
+  el.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  document.getElementById('feedInner').appendChild(el);
+  scrollBottom();
+}
+
+function addAgentCard(){
+  const el = document.createElement('div');
+  el.className='msg';
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-head">${'🤖'} <b>智能体</b></div>
+      <div class="steps"></div>
+      <div class="result" style="padding:14px 16px"></div>
+    </div>`;
+  document.getElementById('feedInner').appendChild(el);
+  scrollBottom();
+  return el;
+}
+
+function section(title, content, cls){
+  return `<div style="margin-bottom:16px">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:9px;color:var(--fg)">${title}</div>
+      <div class="card-body md" style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 15px">${md(content)}</div>
+    </div>`;
+}
+
+function metaLine(g){
+  const parts = [];
+  if(g.elapsed) parts.push(`⏱ ${g.elapsed}s`);
+  if(g.tokens?.prompt) parts.push(`↑${g.tokens.prompt} / ↓${g.tokens.completion} tokens`);
+  parts.push(`system ${(g.system_chars/1000).toFixed(1)}k 字符`);
+  if(g.truncated?.length) parts.push(`<span style="color:var(--warn)">⚠ 截断：${g.truncated.join(',')}</span>`);
+  return `<div style="font-size:10.5px;color:#5a6474;margin:-8px 0 4px">${parts.join(' · ')}</div>`;
+}
+
+/* 超轻量 markdown */
+function md(t){
+  if(!t) return '';
+  let s = escapeHtml(t);
+  s = s.replace(/```(\w*)\n([\s\S]*?)```/g, (m,l,c)=>`<pre><code>${c.trim()}</code></pre>`);
+  s = s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  s = s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  s = s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  s = s.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  s = s.replace(/^[-*] (.+)$/gm,'<li>$1</li>');
+  s = s.replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ul>$1</ul>');
+  s = s.replace(/^---$/gm,'<hr>');
+  // 段落
+  s = s.split(/\n{2,}/).map(p=>{
+    if(/^\s*<(h\d|ul|pre|hr|table|div)/.test(p)) return p;
+    return `<p>${p.replace(/\n/g,'<br>')}</p>`;
+  }).join('');
+  return s;
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function scrollBottom(){
+  const f = document.getElementById('feed');
+  requestAnimationFrame(()=>f.scrollTop = f.scrollHeight);
+}
+function clearFeed(){
+  document.getElementById('feedInner').innerHTML =
+    `<div class="empty" id="empty"><h2>说一句话，我给你分镜提示词</h2>
+       <p>系统会自动挑选技能包并自检。<br>写完可以接着说「再短一点」继续改。</p></div>`;
+  S.history = [];
+  S.lastSkills = [];
+  updateMemChip();
+}
+
+/* ============================== 设置 ============================== */
+async function openConfig(){
+  const c = await fetch('/api/config').then(r=>r.json());
+  document.getElementById('cfgUrl').value = c.base_url;
+  document.getElementById('cfgModel').value = c.model;
+  document.getElementById('cfgKey').value = '';
+  document.getElementById('cfgKey').placeholder = c.api_key_ready ? `当前 ${c.api_key_masked}（留空不改）` : '还没配置，请填入';
+  document.getElementById('mask').classList.add('show');
+}
+function closeConfig(){ document.getElementById('mask').classList.remove('show'); }
+async function saveConfig(){
+  const body = {
+    base_url: document.getElementById('cfgUrl').value.trim(),
+    model: document.getElementById('cfgModel').value.trim(),
+  };
+  const k = document.getElementById('cfgKey').value.trim();
+  if(k) body.api_key = k;
+  await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  closeConfig();
+  toast('已保存');
+}
+
+/* ============================== 杂项 ============================== */
+function fill(t){ const el=document.getElementById('input'); el.value=t; el.focus(); autoGrow(); }
+function autoGrow(){ const el=document.getElementById('input'); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
+function toast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#232833;color:#e8eaed;padding:9px 18px;border-radius:9px;font-size:12.5px;z-index:999;border:1px solid #2a2f3a;box-shadow:0 6px 22px rgba(0,0,0,.45)';
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300)},1900);
+}
+
+document.getElementById('input').addEventListener('input', autoGrow);
+document.getElementById('input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+loadSkills().then(()=>{ if(S.skills.length===0) toast('没找到技能包，检查 skills 目录'); });
+</script>
+</body>
+</html>
