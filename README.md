@@ -79,7 +79,7 @@ python scripts/build_extra_skills.py
 
 ---
 
-## 怎么跑
+## 怎么跑呢
 
 ### 1. 装依赖
 
