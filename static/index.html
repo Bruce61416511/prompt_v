@@ -31,20 +31,49 @@
   .side-body{flex:1; overflow-y:auto; padding:12px}
   .sec-title{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; margin:8px 6px 8px}
 
-  /* ---------- 技能列表（紧凑：只显名字，点开看详情） ---------- */
+  /* ---------- 技能列表 ----------
+     31 个技能行为统一：**点一下 = 把它的名字（召唤词）填进输入框**，
+     点右侧 › = 看详情。没有「锁定」这种隐藏状态 ——
+     2026-10-16 实测用中文名点名风格 12/12 精确命中，所以指定风格不需要隐藏开关，
+     把名字写进输入框反而更好：看得见、能改、还能接着补充别的要求。
+     列表里显示中文名（从技能标题里取），英文短名做副标题，
+     skill 的真名只放在 data-name 里，不发散到界面上。 */
+  .sk-group{
+    font-size:11px; color:var(--dim); font-weight:600; letter-spacing:.5px;
+    margin:14px 6px 7px; display:flex; align-items:center; gap:7px;
+  }
+  .sk-group:first-child{margin-top:2px}
+  .sk-group .n{color:#5a6474; font-weight:400}
+  .sk-group .ln{flex:1; height:1px; background:var(--line)}
   .skill{
     background:var(--panel2); border:1px solid var(--line); border-radius:8px;
-    padding:9px 11px; margin-bottom:6px; cursor:pointer; transition:.13s;
+    padding:7px 10px; margin-bottom:6px; cursor:pointer; transition:.13s;
     display:flex; align-items:center; gap:8px;
   }
   .skill:hover{border-color:#3a4150; background:#222733}
-  .skill-name{font-size:12px; font-weight:600; flex:1; word-break:break-all; line-height:1.4}
-  .skill-check{
-    font-size:10px; color:var(--ok); flex-shrink:0; font-weight:700;
-    width:14px; height:14px; display:grid; place-items:center;
-    background:#12261a; border-radius:50%; line-height:1;
+  .skill-main{flex:1; min-width:0}
+  .skill-name{
+    font-size:12px; font-weight:600; line-height:1.35;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .skill-arrow{font-size:10px; color:#3a4150; flex-shrink:0}
+  .skill-slug{
+    font-size:10px; color:#5a6474; margin-top:2px; line-height:1.3;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family:Consolas,Monaco,monospace;
+  }
+  .skill-plus{
+    font-size:13px; color:#5a6474; flex-shrink:0; line-height:1;
+    width:15px; text-align:center; transition:.13s;
+  }
+  .skill:hover .skill-plus{color:var(--accent)}
+  /* 点一下往里填名字，给个短促反馈，免得以为没反应 */
+  .skill.flash{border-color:var(--accent); background:#182238}
+  .skill.flash .skill-name{color:var(--accent)}
+  .skill-arrow{
+    font-size:11px; color:#3a4150; flex-shrink:0; cursor:pointer;
+    padding:2px 4px; border-radius:5px; transition:.13s;
+  }
+  .skill-arrow:hover{color:var(--accent); background:#252c3a}
 
   /* ---------- 技能详情弹窗 ---------- */
   .sk-detail{width:680px; max-width:94vw; max-height:84vh; display:flex; flex-direction:column}
@@ -302,7 +331,7 @@
     <p><span class="dot"></span>已加载 <span id="skillCount">0</span> 个技能</p>
   </div>
   <div class="side-body">
-    <div class="sec-title">可用技能</div>
+    <div class="sec-title">点一下填进输入框 · 右侧 › 看详情</div>
     <div id="skillList"></div>
   </div>
   <div class="side-foot" style="flex-direction:column;align-items:stretch;gap:9px">
@@ -330,7 +359,7 @@
     <span id="chatTools" style="flex:1;display:flex;align-items:center;gap:12px;min-width:0">
       <span class="chip" id="memChip" style="display:none" onclick="clearMemory()"
             title="它记得上面聊过什么。点这里可以清空记忆，重新开始。">🧠 记忆 0 轮</span>
-      <span style="font-size:11.5px;color:var(--dim)">
+      <span style="font-size:11.5px;color:var(--dim)" id="runMode">
         <span class="dot"></span>自动选技能 · 自动质检
       </span>
       <span style="flex:1"></span>
@@ -470,12 +499,21 @@
 
 <script>
 /* ============================== 状态 ============================== */
-/* 固定为「自动选技能 + 自动质检」，不再提供手动开关 */
+/* 固定为「自动选技能 + 自动质检」，不再提供手动开关。
+   指定风格的方式：点侧栏把名字填进输入框（见 fillSkill）。 */
 const S = {
   skills: [],
   busy: false,
   history: [],      // 多轮对话记忆：[{role:'user'|'assistant', content:'...'}]
   lastSkills: [],   // 上一轮用过的技能，追问时后端靠它兜底
+};
+
+/* 工具类技能没有中文标题，这里补上显示名（只影响显示，不影响 skill 真名） */
+const TOOL_ZH = {
+  'seedance-production-workflow': '生产流程规范',
+  'seedance-prompt-library':      '提示词模板库',
+  'seedance-prompt-lint':         '提示词质检器',
+  'seedance-storyboard-writer':   '分镜脚本生成器',
 };
 
 /* 当前视图：'chat' 生成 | 'cases' 案例库 */
@@ -516,17 +554,99 @@ function clearMemory(){
   toast('记忆已清空，下一句当作新话题');
 }
 
-/* ============================== 技能列表 ============================== */
+/* ============================== 技能列表 ==============================
+   31 个技能行为完全统一：
+     点整行  → 把它的「召唤词」填进输入框（风格=中文名，工具=一句现成的说法）
+     点 ›    → 看这个技能的详情
+   界面上只出现中文名，skill 的真名（seedance-xxx）放在 data-name 里。 */
+
+/* 从技能标题里取中文名：27 个风格技能的正文首行是「English · 中文名」 */
+function zhOfSkill(s){
+  if(TOOL_ZH[s.name]) return TOOL_ZH[s.name];
+  const first = ((s.body_preview || '').trim().split('\n')[0] || '').trim();
+  if(first.includes('·')) return first.split('·').pop().trim();
+  return first || s.name.replace(/^seedance-/, '');
+}
+
+/* skill 真名 → 界面上的中文名（查不到就退回真名，别显示空白） */
+function zhOfName(name){
+  const hit = S.skills.find(s=>s.name === name);
+  return hit ? hit.zh : name;
+}
+
 async function loadSkills(){
   const r = await fetch('/api/skills').then(r=>r.json());
-  S.skills = r.skills || [];
+  S.skills = (r.skills || []).map(s=>({
+    ...s,
+    zh:    zhOfSkill(s),
+    slug:  s.name.replace(/^seedance-/, ''),
+    /* 判据：带 cases.md 的是「风格/题材」技能（由 build_extra_skills 生成）；
+       不带的是「工具」技能。这样上游以后新增风格技能会自动归对组，不用改代码。 */
+    isStyle: (s.references || []).some(x=>x.name === 'cases.md'),
+  }));
   document.getElementById('skillCount').textContent = r.count;
-  document.getElementById('skillList').innerHTML = S.skills.map((s,i)=>`
-    <div class="skill" data-name="${s.name}" onclick="showSkill(${i})" title="点击查看功能">
-      <span class="skill-check">✓</span>
-      <div class="skill-name">${escapeHtml(s.name)}</div>
-      <span class="skill-arrow">›</span>
-    </div>`).join('');
+  renderSkillList();
+}
+
+function renderSkillList(){
+  const style = [], tool = [];
+  S.skills.forEach((s,i)=>(s.isStyle ? style : tool).push(i));
+
+  const grp = (title, n) =>
+    `<div class="sk-group"><span>${title}</span><span class="n">${n}</span><span class="ln"></span></div>`;
+
+  const row = (i) => {
+    const s = S.skills[i];
+    return `<div class="skill" data-name="${escapeHtml(s.name)}"
+        onclick="fillSkill(${i})" title="点一下把「${escapeHtml(s.zh)}」填进输入框">
+      <span class="skill-plus">＋</span>
+      <div class="skill-main">
+        <div class="skill-name">${escapeHtml(s.zh)}</div>
+        <div class="skill-slug">${escapeHtml(s.slug)}</div>
+      </div>
+      <span class="skill-arrow" onclick="event.stopPropagation();showSkill(${i})"
+            title="看这个技能的详情">›</span>
+    </div>`;
+  };
+
+  document.getElementById('skillList').innerHTML =
+      (style.length ? grp('风格 · 点一下填进输入框', style.length) + style.map(row).join('')  : '')
+    + (tool.length  ? grp('工具 · 点一下填进输入框', tool.length) + tool.map(row).join('') : '');
+}
+
+/* ---------- 点技能 = 把「召唤词」填进输入框 ----------
+   2026-10-16 22:56 按用户决定：31 个技能行为统一，不再有「锁定」这种隐藏状态。
+   理由（实测）：用中文名点名风格 12/12 精确命中 —— 名字本身就是召唤词，
+   写进输入框比锁一个隐藏开关更好：看得见、能改、还能接着补充别的要求
+   （例如点「美食特写与吃播 ASMR」后再打「15 秒竖屏」）。
+   4 个工具技能没有「风格名」可填，各自给一句现成的说法。 */
+const SUMMON = {
+  'seedance-prompt-lint':         '帮我质检下面这段提示词：',
+  'seedance-prompt-library':      '用模板库里最合适的模板帮我写一条视频提示词：',
+  'seedance-storyboard-writer':   '把下面的内容改成视频剧本（分 3 集）：',
+  'seedance-production-workflow': '帮我规划一个完整的视频项目，从需求到成片：',
+};
+
+function fillSkill(i){
+  const s = S.skills[i];
+  if(!s) return;
+
+  const text = SUMMON[s.name] || (s.zh + ' 风格，');
+  const el   = document.getElementById('input');
+  const cur  = el.value;
+
+  /* 追加在末尾，不覆盖你已经写的东西 */
+  el.value = cur ? (cur.replace(/\s+$/, '') + ' ' + text) : text;
+  el.focus();
+  el.setSelectionRange(el.value.length, el.value.length);
+  autoGrow();
+
+  /* 短促闪一下，免得以为点了没反应 */
+  const node = document.querySelector(`.skill[data-name="${CSS.escape(s.name)}"]`);
+  if(node){
+    node.classList.add('flash');
+    setTimeout(()=>node.classList.remove('flash'), 420);
+  }
 }
 
 /* ---------- 技能详情 ---------- */
@@ -622,6 +742,8 @@ async function send(){
   };
 
   const body = box.querySelector('.result');
+  let pickSrc = null;      // 本轮技能是「手动指定 / 沿用上一轮 / 自动挑」的哪一种
+  /* 技能一律交给系统自动挑（想指定风格就在输入框里写明名字，见 fillSkill） */
   const payload = {
     message: text,
     skills: null,                                       // 始终自动选技能
@@ -686,6 +808,7 @@ async function send(){
 
       case 'picked':
         setStep('picking','done');
+        pickSrc = ev.source;
         if(ev.skills?.length){
           setStep('picked','done');
           const srcMap = {user:'（手动指定）', reuse:'（沿用上一轮）'};
@@ -739,11 +862,30 @@ async function send(){
     }
 
     let html = '';
-    html += section('🎬 分镜提示词', g.content, 'md');
-    html += metaLine(g);
 
-    if(res.lint){
-      html += section('🔍 质检报告', res.lint.content, 'md');
+    // 本轮用了哪个技能。生成过程中已经显示过一行，但下面 body.innerHTML 会把它冲掉，
+    // 所以在这里补回来 —— 这一轮到底用了哪个技能，看得见才放心。
+    const used = res.skills_used || [];
+    if(used.length){
+      const tag = pickSrc === 'user'  ? '（手动指定风格）'
+                : pickSrc === 'reuse' ? '（沿用上一轮）'
+                :                       '（自动挑选）';
+      html += `<div style="font-size:11.5px;color:var(--dim);margin-bottom:9px">
+        已加载技能${tag}：<b style="color:var(--accent)">${escapeHtml(used.map(zhOfName).join('、'))}</b>
+      </div>`;
+    }
+
+    // 只要求「检查这段提示词」时，产出物本身就是质检报告，别再标成「分镜提示词」
+    if(res.lint_only){
+      html += section('🔍 质检报告', g.content, 'md');
+      html += metaLine(g);
+    }else{
+      html += section('🎬 分镜提示词', g.content, 'md');
+      html += metaLine(g);
+
+      if(res.lint){
+        html += section('🔍 质检报告', res.lint.content, 'md');
+      }
     }
     body.innerHTML = html;
     scrollBottom();

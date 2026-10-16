@@ -534,15 +534,28 @@ class Agent:
             "lint": None,
         }
 
-        # ④ 质检：只有本次真的选中了质检技能才跑
+        # ④ 质检：固定环节（2026-10-16 22:50 按用户决定恢复）
         #
-        # 判据只看「picked 里有没有名字含 lint 的技能」。
-        # 用户想要质检，就在需求里说出来，由模型决定是否选 lint ——
-        # 技能之间不再强制绑定（PIPELINES 已清空）。
-        lint_skill = next((n for n in picked if "lint" in n.lower()), None)
+        # 历史：PIPELINES 清空后，质检退化成「模型真的选中 lint 才跑」。
+        # 2026-10-16 实测三次真实调用：口语化需求（「写一条 15 秒美食短视频」）
+        # —— 不论自动选还是手动锁定风格 —— lint 都返回 None，一次没跑过；
+        # 而顶栏一直写着「自动质检」，标签名不副实。所以改成：
+        # 只要 do_lint 打开，生成完就一律查一遍；本次没选中 lint 就用仓库里的兜底。
+        #
+        # 唯一例外：本次**生成的技能本身就是质检技能**（用户只说了「检查这段提示词」），
+        # 那时产出物已经是质检报告了，再拿去审一遍等于「审报告」，纯浪费，跳过。
+        gen_is_lint = bool(picked) and all("lint" in n.lower() for n in picked)
 
-        if do_lint and lint_skill and gen["content"]:
-            emit("linting", {})
+        lint_skill = next((n for n in picked if "lint" in n.lower()), None)
+        if not lint_skill:
+            lint_skill = next((n for n in self.loader.names() if "lint" in n.lower()), None)
+
+        if gen_is_lint:
+            # 产出物本身就是质检报告，标个记号让前端按「质检报告」渲染
+            result["lint_only"] = True
+
+        if do_lint and lint_skill and gen["content"] and not gen_is_lint:
+            emit("linting", {"skill": lint_skill, "auto": lint_skill not in picked})
             try:
                 result["lint"] = self.lint(gen["content"], skill_name=lint_skill)
                 emit("linted", {"chars": len(result["lint"]["content"])})
@@ -550,7 +563,7 @@ class Agent:
                 result["lint"] = {"content": f"（质检失败：{e}）", "skills_used": []}
                 emit("linted", {"error": str(e)})
         elif do_lint and not lint_skill:
-            emit("lint_skipped", {"reason": "本次没有选中质检技能，跳过质检"})
+            emit("lint_skipped", {"reason": "仓库里没有质检技能，跳过质检"})
 
         return result
 
