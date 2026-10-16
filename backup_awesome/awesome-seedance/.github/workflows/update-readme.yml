@@ -1,0 +1,48 @@
+name: Update README
+
+# Data refresh comes from the private goodcase.ai collection pipeline exporting
+# into data/cases.json / data/style-library.json and pushing that here — this
+# workflow only regenerates the derived README/docs/skill-reference files, it
+# does not call any external API itself. Runs on data changes and on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "scripts/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate README and Skill reference
+        run: npm run generate
+
+      - name: Commit regenerated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # gallery 已分片为 docs/gallery-*.md，不再是单文件，改为整个目录一起 add；
+          # assets/hero.svg 与 data/stats.json 也由生成器产出（横幅数字、动态徽章数据源）
+          git add README.md README_zh.md README_ja.md docs/ agents/ assets/hero.svg data/stats.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: regenerate README and skill reference from data"
+            git push
+          fi
