@@ -10,3 +10,14 @@ data/update-status.json
 # 本地跑出来的产物：迁移未同步清单、调研说明、测试输出等中间结果。
 # 属于本机工作台账，不是项目本身的一部分。
 output/
+
+# 运行时生成：记录当前服务监听的端口，供 start.bat 判断「服务是否已经在跑」。
+.runtime-port
+
+# Python 虚拟环境（部署到服务器时会建）
+.venv/
+venv/
+
+# Python 缓存
+__pycache__/
+*.pyc

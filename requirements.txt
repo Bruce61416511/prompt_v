@@ -1,0 +1,15 @@
+# 提示词智能体 · 运行依赖
+#
+# Windows 本机（已有 Python 的话）：
+#     python -m pip install -r requirements.txt
+#
+# Linux 服务器（Ubuntu 24.04 等）注意 PEP 668：直接 pip install 会被系统拦下
+# （报 externally-managed-environment），必须先建虚拟环境：
+#     python3 -m venv .venv
+#     .venv/bin/pip install -r requirements.txt
+#     .venv/bin/python run.py --host 0.0.0.0 --port 8099
+#
+# 只有这两个包。不依赖任何前端构建工具，页面是原生 HTML + JS。
+
+fastapi>=0.110
+uvicorn>=0.27

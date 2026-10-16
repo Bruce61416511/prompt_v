@@ -39,6 +39,8 @@
 ```
 提示词智能体/
 ├── run.py                    启动入口
+├── start.bat                 ★ 一键启动：双击即可（自动找 Python + 挑空闲端口 + 开浏览器）
+├── requirements.txt          运行依赖清单（fastapi + uvicorn，就这两个）
 ├── config.json               配置（API Key 存这里）
 ├── config.example.json       配置模板
 ├── app/
@@ -82,8 +84,13 @@ python scripts/build_extra_skills.py
 ### 1. 装依赖
 
 ```bash
-pip install openai fastapi "uvicorn[standard]" pyyaml
+pip install -r requirements.txt
 ```
+
+就两个包（fastapi + uvicorn）。没有前端构建工具，页面是原生 HTML + JS，不用 `npm install`。
+
+> **Ubuntu 24.04 这类系统**有 PEP 668 限制，直接 `pip install` 会被系统拦下报 `externally-managed-environment`，
+> 必须先建虚拟环境：`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 
 ### 2. 配置 API Key
 
@@ -97,20 +104,35 @@ pip install openai fastapi "uvicorn[standard]" pyyaml
 
 ### 3. 启动
 
+**最省事：双击 `start.bat`**（项目根目录里一个，桌面上也放了一个入口）。它会自己：
+
+1. 找到装了 fastapi 的那个 Python（不用你记路径）
+2. 检查服务是不是已经在跑 —— 已经在跑就**只打开页面**，不会重复启动
+3. 没在跑就以 8099 起自动找一个空闲端口启动，并自动打开浏览器
+
+命令行方式也一样，只是参数自己写：
+
 ```bash
-python run.py
+python run.py                        # 默认 8080 端口
+python run.py --port auto            # 从 8099 起自动找空闲端口（日常推荐）
+python run.py --open                 # 启动后自动打开浏览器
 ```
 
-浏览器打开 **http://127.0.0.1:8080**（注意是 8080）
+浏览器打开 **http://127.0.0.1:8080**（默认端口；用 `--port auto` 时看启动时打印的地址）
 
 参数：
 
 ```bash
-python run.py --port 9000              # 换端口
-python run.py --host 0.0.0.0           # 允许局域网访问
+python run.py --port 9000              # 指定端口；被占用会直接告诉你被谁占了
+python run.py --port auto              # 自动挑一个空闲端口（从 8099 起）
+python run.py --host 0.0.0.0           # 允许局域网/公网访问（默认只监听 127.0.0.1）
+python run.py --open                   # 启动后自动打开浏览器
 python run.py --skills "D:\MySkills"   # 换技能目录
 python run.py --reload                 # 开发模式，改代码自动重启
 ```
+
+> ⚠️ **部署到服务器时**：默认只监听 `127.0.0.1`，也就是**只有服务器自己能访问**，外部打不开；
+> 必须显式加 `--host 0.0.0.0`，否则你会去查防火墙/安全组，其实根本没到那一步。
 
 ---
 
