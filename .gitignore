@@ -1,0 +1,12 @@
+# 本地配置：含真实 API Key，不要提交进仓库。
+# 需要模板请复制 config.example.json 改名成 config.json。
+config.json
+
+# 运行时生成：记录「本机上次点检查更新的时间」，每点一次按钮就变一次。
+# 它只是缓存，别人 clone 后没有它也完全正常（前端显示「尚未检查」），
+# 真正的数据版本看 data/cases.json 的 meta.exportedAt 即可。
+data/update-status.json
+
+# 本地跑出来的产物：迁移未同步清单、调研说明、测试输出等中间结果。
+# 属于本机工作台账，不是项目本身的一部分。
+output/
