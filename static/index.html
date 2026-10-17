@@ -176,6 +176,14 @@
   .step.skip{opacity:.38; text-decoration:line-through}
   .arrow{color:#3a4150; font-size:10px}
 
+  /* 复制按钮（提示词 / 修正稿右上角） */
+  .copy-btn{
+    font-size:10.5px; padding:2px 9px; border-radius:6px; cursor:pointer;
+    background:#232833; border:1px solid var(--line); color:var(--dim); transition:.15s;
+  }
+  .copy-btn:hover{border-color:var(--accent); color:var(--accent)}
+  .copy-btn:active{transform:scale(.96)}
+
   /* 输入框 */
   .composer{padding:14px 20px 20px; flex-shrink:0; background:linear-gradient(transparent,var(--bg) 40%)}
   .composer-inner{
@@ -360,7 +368,7 @@
       <span class="chip" id="memChip" style="display:none" onclick="clearMemory()"
             title="它记得上面聊过什么。点这里可以清空记忆，重新开始。">🧠 记忆 0 轮</span>
       <span style="font-size:11.5px;color:var(--dim)" id="runMode">
-        <span class="dot"></span>自动选技能 · 自动质检
+        <span class="dot"></span>自动选技能 · 自动质检 · 自动修正
       </span>
       <span style="flex:1"></span>
       <span class="chip" onclick="clearFeed()">清空</span>
@@ -724,7 +732,8 @@ async function send(){
   const stepsEl = box.querySelector('.steps');
   const STEPS = [
     ['picking','① 选技能'],['picked','② 加载技能'],
-    ['generating','③ 生成提示词'],['linting','④ 质检'],['done','完成']
+    ['generating','③ 生成提示词'],['linting','④ 质检'],
+    ['revising','⑤ 按质检修正'],['done','完成']
   ];
   stepsEl.innerHTML = STEPS.map(([k,l],i)=>
     `<span class="step" data-k="${k}">${l}</span>`+(i<STEPS.length-1?'<span class="arrow">›</span>':'')
@@ -791,11 +800,12 @@ async function send(){
       case 'picking': setStep('picking','doing'); break;
 
       case 'no_skill':
-        skipStep('picked'); skipStep('generating'); skipStep('linting');
+        skipStep('picked'); skipStep('generating'); skipStep('linting'); skipStep('revising');
+        const nsErr = ev.kind === 'error';
         body.insertAdjacentHTML('beforeend',
-          `<div style="font-size:12.5px;color:var(--warn);margin-bottom:10px;line-height:1.7">
-             ⚠ ${escapeHtml(ev.reason || '没有找到能完成这个需求的技能')}<br>
-             <span style="color:var(--dim)">${escapeHtml(ev.hint || '换个说法描述，或在左侧手动勾选技能')}</span>
+          `<div style="font-size:12.5px;color:${nsErr?'var(--bad)':'var(--warn)'};margin-bottom:10px;line-height:1.7">
+             ${nsErr?'❌':'⚠'} ${escapeHtml(ev.reason || '没找到能完成这个需求的技能')}<br>
+             <span style="color:var(--dim)">${escapeHtml(ev.hint || '换个说法描述')}</span>
            </div>`);
         break;
 
@@ -831,9 +841,22 @@ async function send(){
 
       case 'lint_skipped':
         skipStep('linting');
+        skipStep('revising');
         body.insertAdjacentHTML('beforeend',
           `<div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">
-             — 本次没有选中质检技能，已跳过质检
+             — 本次没有选中质检技能，已跳过质检与修正
+           </div>`);
+        break;
+
+      /* ⑤ 修正：质检报告是「诊断书」，这一步产出「改好的成稿」。
+         2026-10-17 网页端补齐 —— 此前只有飞书有这一段。 */
+      case 'revising': setStep('revising','doing'); break;
+      case 'revised':  setStep('revising','done'); break;
+      case 'revise_skipped':
+        skipStep('revising');
+        body.insertAdjacentHTML('beforeend',
+          `<div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">
+             — ${escapeHtml(ev.reason || '本次没有产出修正稿')}
            </div>`);
         break;
 
@@ -853,10 +876,29 @@ async function send(){
 
     // 没选出技能：不兜底，直接告诉用户该怎么做
     if(!g){
+      /* 原因分四类（见 agent._no_skill_text）：
+         error = 选技能的服务出错，该查服务；
+         其余三种 = 技能库/名称/需求描述的问题，该改这边。别让人去查错方向。 */
+      const isErr = res.reason_kind === 'error';
+      const col  = isErr ? 'var(--bad)' : 'var(--warn)';
+      const icon = isErr ? '❌' : '⚠';
+
+      /* 没匹配到就把这句还回输入框 —— 改两个字重发，不用整段重敲。
+         只在输入框还空着时还：你可能趁生成那几秒已经打了新内容，别覆盖掉。 */
+      let restored = false;
+      if(!el.value.trim()){
+        el.value = String(text);
+        autoGrow();
+        try{ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }catch(ignore){}
+        restored = true;
+      }
+
       body.innerHTML =
-        `<div style="font-size:13px;color:var(--warn);line-height:1.9">
-           ${escapeHtml(res.message || '没找到合适的技能来完成这个需求。').replace(/\n/g,'<br>')}
-         </div>`;
+        `<div style="font-size:13px;color:${col};line-height:1.9;white-space:pre-wrap">`+
+        `${icon} ${escapeHtml(res.message || '没找到合适的技能来完成这个需求。')}</div>`+
+        (restored
+          ? `<div style="font-size:11.5px;color:var(--dim);margin-top:8px">已把刚才那句填回输入框，改两个字直接发就行。</div>`
+          : '');
       scrollBottom();
       return;
     }
@@ -880,11 +922,26 @@ async function send(){
       html += section('🔍 质检报告', g.content, 'md');
       html += metaLine(g);
     }else{
-      html += section('🎬 分镜提示词', g.content, 'md');
+      html += section('🎬 分镜提示词', g.content, 'md', {copy:true});
       html += metaLine(g);
 
       if(res.lint){
         html += section('🔍 质检报告', res.lint.content, 'md');
+      }
+
+      /* ③ 纠正后的提示词 —— 用户要的最终交付物。
+         2026-10-17 补齐：此前网页端跑完质检就结束，只有飞书会出这一段。 */
+      const rev = res.revision;
+      if(rev && rev.revised){
+        html += section('✅ 纠正后的提示词（复制即用）', rev.revised, 'md', {copy:true});
+        if(rev.issues){
+          html += `<details style="margin:-10px 0 16px">
+            <summary style="cursor:pointer;font-size:11.5px;color:var(--dim)">查看本次按质检改了哪些问题</summary>
+            <div class="card-body md" style="margin-top:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12px">${md(rev.issues)}</div>
+          </details>`;
+        }
+      }else if(rev && rev.issues){
+        html += section('⚠ 需要改的问题（未出修正稿）', rev.issues, 'md');
       }
     }
     body.innerHTML = html;
@@ -915,11 +972,54 @@ function addAgentCard(){
   return el;
 }
 
-function section(title, content, cls){
+/* 复制按钮：把「复制即用」落到实处，省得用户手动划选 */
+const COPY_STORE = {};
+let copySeq = 0;
+
+/* 模型常把提示词整段包在 ``` 代码块里；复制时要去掉围栏，
+   否则用户粘贴到视频平台会带上三个反引号。 */
+function unfence(t){
+  const s = String(t || '').trim();
+  if(s.startsWith('```')){
+    const body = s.slice(3).replace(/^[^\n]*\n/, '');        // 去掉 ```lang 这一行
+    return body.replace(/```\s*$/, '').trim();
+  }
+  return s;
+}
+
+function section(title, content, cls, opts){
+  const wantCopy = !!(opts && opts.copy);
+  if(wantCopy) content = unfence(content);
+  let btn = '';
+  if(wantCopy){
+    const k = 'c' + (++copySeq);
+    COPY_STORE[k] = content || '';
+    btn = `<button class="copy-btn" data-k="${k}" onclick="copySection(this)">复制</button>`;
+  }
   return `<div style="margin-bottom:16px">
-      <div style="font-size:12.5px;font-weight:700;margin-bottom:9px;color:var(--fg)">${title}</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:9px;color:var(--fg)">
+        <span>${title}</span>${btn}
+      </div>
       <div class="card-body md" style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 15px">${md(content)}</div>
     </div>`;
+}
+
+function copySection(btn){
+  const text = COPY_STORE[btn.dataset.k] || '';
+  const ok = () => { btn.textContent = '已复制 ✓'; setTimeout(()=>{ btn.textContent = '复制'; }, 1500); };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); ok(); }
+    catch(e){ alert('复制失败，请手动选中文本复制'); }
+    document.body.removeChild(ta);
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(ok).catch(fallback);
+  }else{
+    fallback();
+  }
 }
 
 function metaLine(g){

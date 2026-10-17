@@ -130,38 +130,21 @@ def card_size(card: dict) -> int:
 
 # ---------------------------------------------------------------- 质检修正
 
-REVISE_INSTR = (
-    "下面是一段 Seedance 视频提示词，以及它的质检报告。\n"
-    "请做两件事：\n"
-    "1. 只列「必须修的问题」，最多 5 条，每条一句话，不要展开解释。\n"
-    "2. 输出修改后的完整提示词：保留原有结构与格式，把问题全部改掉，"
-    "达到可直接复制去生成视频的程度，不要再附加任何检查、说明或总结。\n"
-    "严格按以下格式输出（标记【问题】【修改后】原样保留）：\n"
-    "【问题】\n"
-    "1. ...\n"
-    "【修改后】\n"
-    "<修改后的完整提示词>"
-)
+# 2026-10-17：提示词与解析规则已收进 app/agent.py 的 Agent.revise()，
+# 网页端和飞书共用同一份实现（此前只有飞书有，网页端跑完质检就结束，
+# 用户看不到「纠正后的提示词」）。这里保留薄封装，调用方不用改。
 
 
 def revise(agent, gen_skill: str, prompt_text: str, lint_text: str) -> tuple[str | None, str | None]:
     """质检后自动修正。返回 (问题清单, 修正后提示词)；失败返回 (None, None)。"""
-    user_input = (f"{REVISE_INSTR}\n\n=== 提示词 ===\n{prompt_text}\n\n"
-                  f"=== 质检报告 ===\n{lint_text}")
     try:
-        out = agent.generate(user_input=user_input,
-                             skill_names=[gen_skill],
-                             temperature=0.3)
-        content = (out or {}).get("content") or ""
+        out = agent.revise(prompt_text, lint_text, skill_name=gen_skill)
     except Exception as e:
         print(f"[飞书] 质检修正失败：{e!r}", flush=True)
         return None, None
-
-    m1, m2 = content.find("【问题】"), content.find("【修改后】")
-    if m1 == -1 or m2 == -1 or m2 < m1:
-        # 模型没守格式：整段当修正稿给出去，至少不白跑
-        return None, content.strip() or None
-    return content[m1 + 4:m2].strip(), content[m2 + 5:].strip()
+    if out.get("error"):
+        print(f"[飞书] 质检修正失败：{out['error']}", flush=True)
+    return out.get("issues"), out.get("revised")
 
 
 # ---------------------------------------------------------------- 主逻辑
@@ -349,14 +332,18 @@ class FeishuChannel:
 
         elapsed = time.time() - t0
 
-        # ⑥.5 质检修正：拿生成技能再跑一轮，把质检必改项修掉
-        issues = revised = None
-        lint_text = (res.get("lint") or {}).get("content") or ""
-        gen_text = (res.get("generate") or {}).get("content") or ""
-        gen_skill = next((n for n in (res.get("skills_used") or []) if "lint" not in n.lower()),
-                         "seedance-prompt-library")
-        if lint_text and gen_text:
-            issues, revised = revise(self.agent, gen_skill, gen_text, lint_text)
+        # ⑥.5 质检修正：现在由 run_full 内部完成（见 Agent._run_after_pick ⑤），
+        # 直接取结果即可 —— 再调一遍 revise 会让同一次需求多跑 20 秒和一份 token。
+        # 只有老版本 run_full（没有该字段）才回退到本地补跑。
+        rev = res.get("revision") or {}
+        issues, revised = rev.get("issues"), rev.get("revised")
+        if not (issues or revised):
+            lint_text = (res.get("lint") or {}).get("content") or ""
+            gen_text = (res.get("generate") or {}).get("content") or ""
+            gen_skill = next((n for n in (res.get("skills_used") or []) if "lint" not in n.lower()),
+                             "seedance-prompt-library")
+            if lint_text and gen_text and not res.get("lint_only"):
+                issues, revised = revise(self.agent, gen_skill, gen_text, lint_text)
 
         self._deliver(message_id, chat_id, res, elapsed, issues, revised)
         print(f"[飞书] 已回复 chat={chat_id[:12]}… 耗时 {elapsed:.0f}s "

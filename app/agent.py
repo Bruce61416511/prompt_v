@@ -12,7 +12,9 @@
        ↓
     ③ 生成：模型按 skill 规则写出分镜提示词
        ↓
-    ④ 质检（可选）：再跑一遍 seedance-prompt-lint
+    ④ 质检：再跑一遍 seedance-prompt-lint
+       ↓
+    ⑤ 修正：拿质检报告把提示词改一遍，产出「可直接复制使用」的定稿
        ↓
     输出
 """
@@ -77,14 +79,21 @@ class Agent:
             所以要把上文（最近几条）+ 上一轮用过的技能一起给它看。
 
         返回 (技能列表, 来源)。来源取值：
-            "user"   用户手动指定
-            "model"  模型自己选的
-            "reuse"  模型没选出来，沿用上一轮的技能（追问兜底）
+            "user"           用户手动指定，且名称有效
+            "model"          模型自己选的
+            "reuse"          模型没选出来，沿用上一轮的技能（追问兜底）
+            "forced_invalid" 指定了技能，但名字一个都不在库里（→ 当作没匹配，别静默生成）
+            "no_catalog"     技能库本身是空的
+            "error"          选技能这一步调用模型出错了（接口超时/鉴权/配额等）
         """
         if forced:
-            return [n for n in forced if n in self.loader.skills], "user"
+            # 2026-10-17 补洞：此前 forced 全无效时会返回 [] 却标成 "user"，
+            # 上游据此跳过 no_skill 判断直接进生成；generate 见 system 为空就用
+            # 一句通用兜底提示，模型凭空写一份交出去。现在明确区分出来。
+            valid = [n for n in forced if n in self.loader.skills]
+            return valid, ("user" if valid else "forced_invalid")
         if not self.loader.skills:
-            return [], "model"
+            return [], "no_catalog"
 
         # 组装上文摘要：只带最近 4 条，每条截断，够模型判断「这是不是同一件事」就行
         ctx = ""
@@ -129,6 +138,8 @@ class Agent:
             f"用户需求：{user_input}"
         )
 
+        # 判断失败要和「确实没匹配」分开报：接口挂了让人去改措辞，纯属白折腾
+        err: Exception | None = None
         try:
             resp = self.client.chat.completions.create(
                 model=self.cfg.model,
@@ -137,7 +148,8 @@ class Agent:
             )
             raw = (resp.choices[0].message.content or "").strip()
             picked = self._extract_json_array(raw)
-        except Exception:
+        except Exception as e:
+            err = e
             picked = []
 
         picked = [n for n in picked if n in self.loader.skills]
@@ -146,10 +158,16 @@ class Agent:
 
         # 兜底：模型没选出来，但这是在多轮对话里、上一轮刚用过技能 → 沿用。
         # 不然「再改短点」这种追问会被直接拒掉。
+        # 注意判断调用失败时也走这条：接口一时不通，但上一轮的技能还知道，
+        # 能接着干就接着干，比让人干等强。
         if history and last_skills:
             reuse = [n for n in last_skills if n in self.loader.skills]
             if reuse:
                 return reuse, "reuse"
+
+        if err is not None:
+            print(f"[选技能] 判断调用失败：{err!r}", flush=True)
+            return [], "error"
 
         return [], "model"
 
@@ -433,6 +451,76 @@ class Agent:
             temperature=temperature,
         )
 
+    # ------------------------------------------------------------ ⑤ 质检后修正
+
+    # 「质检完发现问题」和「把问题改掉」是两件事：质检报告是给人看的诊断书，
+    # 用户真正要的是改好的成稿。2026-10-17 用户发现网页端只出诊断书、不出成稿，
+    # 而飞书里有 —— 因为这段逻辑原先只写在 feishu_bot.py 里，没有进 Agent。
+    # 现在收进 Agent，网页 / 飞书 / 任何调用方共用同一份提示词与解析规则。
+    REVISE_PROMPT = (
+        "下面是一段 Seedance 视频提示词，以及它的质检报告。\n"
+        "请做两件事：\n"
+        "1. 只列「必须修的问题」，最多 5 条，每条一句话，不要展开解释。\n"
+        "2. 输出修改后的完整提示词：保留原有结构与格式，把问题全部改掉，"
+        "达到可直接复制去生成视频的程度，不要再附加任何检查、说明或总结。\n"
+        "严格按以下格式输出（标记【问题】【修改后】原样保留）：\n"
+        "【问题】\n"
+        "1. ...\n"
+        "【修改后】\n"
+        "<修改后的完整提示词>"
+    )
+
+    @staticmethod
+    def _split_revision(content: str) -> tuple[str | None, str | None]:
+        """把「【问题】…【修改后】…」切成两段。模型不守格式时整段当修正稿。"""
+        text = (content or "").strip()
+        if not text:
+            return None, None
+        m1, m2 = text.find("【问题】"), text.find("【修改后】")
+        if m1 == -1 or m2 == -1 or m2 < m1:
+            return None, text
+        return text[m1 + 4:m2].strip() or None, text[m2 + 5:].strip() or None
+
+    def revise(
+        self,
+        prompt_text: str,
+        lint_text: str,
+        skill_name: str | None = None,
+        temperature: float = 0.3,
+    ) -> dict:
+        """按质检报告修正提示词。
+
+        返回 {issues, revised, content, elapsed}：
+            issues   给用户看的「必改问题」（最多 5 条，一句话一条）
+            revised  改好的完整提示词 —— 复制即可直接拿去生成视频
+        两个都可能为 None（质检没内容 / 模型没守格式），调用方自行兜底。
+        """
+        if not prompt_text or not lint_text:
+            return {"issues": None, "revised": None, "content": "", "skipped": True}
+
+        user_input = (
+            f"{self.REVISE_PROMPT}\n\n=== 提示词 ===\n{prompt_text}\n\n"
+            f"=== 质检报告 ===\n{lint_text}"
+        )
+        try:
+            out = self.generate(
+                user_input=user_input,
+                skill_names=[skill_name] if skill_name else [],
+                temperature=temperature,
+            )
+        except Exception as e:
+            return {"issues": None, "revised": None, "content": "", "error": str(e)}
+
+        content = (out or {}).get("content") or ""
+        issues, revised = self._split_revision(content)
+        return {
+            "issues": issues,
+            "revised": revised,
+            "content": content,
+            "elapsed": (out or {}).get("elapsed"),
+            "tokens": (out or {}).get("tokens"),
+        }
+
     # ------------------------------------------------------------ 技能顺序整理
 
     # 技能之间「不绑定」。2026-10-16 按用户要求清空。
@@ -473,6 +561,38 @@ class Agent:
 
     # ------------------------------------------------------------ 完整链路
 
+    @staticmethod
+    def _no_skill_text(source: str) -> tuple[str, str]:
+        """没选出技能时，按原因给不同的提示。返回 (reason, hint)。
+
+        文案底线：只写用户真能执行的动作。侧栏现在没有「勾选」这回事
+        （2026-10-17 改成点一下填召唤词），别再让人去勾选。
+        """
+        if source == "error":
+            return (
+                "选技能这一步没跑通：调用模型判断该用哪个技能时出错了。",
+                "这不是你描述的问题，别急着改说法。稍等几秒再发一次；"
+                "如果一直这样，看一眼后端窗口（start.bat 那个）的报错，"
+                "多半是接口超时、key 失效或额度用完了。",
+            )
+        if source == "no_catalog":
+            return (
+                "技能库是空的，一个技能都没加载上，所以没法干活。",
+                "点侧栏顶部的「重新扫描」；还空的话，检查项目里 skills 目录还在不在、"
+                "里面的 SKILL.md 有没有被误删。",
+            )
+        if source == "forced_invalid":
+            return (
+                "指定的技能名不在当前技能库里，没法按它来写。",
+                "别手填技能名，直接在左侧点技能——会把它的召唤词填进输入框；"
+                "或者把需求说清楚，交给系统自己挑。",
+            )
+        return (
+            "没找到能完成这个需求的技能。",
+            "换个说法再描述一次（说清要做什么、要做成什么样）。"
+            "也可以点左侧任意技能名，把它的召唤词填进输入框，再在后面补上你的需求。",
+        )
+
     def run_full(
         self,
         user_input: str,
@@ -501,7 +621,8 @@ class Agent:
         )
 
         # 用户手动指定了技能 → 直接用，不再让模型判断
-        if forced:
+        # 只有来源是 "user"（即名字有效）才走这条；名字全无效走下面的 no_skill
+        if forced and source == "user":
             picked = self.resolve_pipeline(picked)
             emit("picked", {"skills": picked, "source": "user"})
             return self._run_after_pick(user_input, picked, do_lint, history, emit)
@@ -512,27 +633,23 @@ class Agent:
             emit("picked", {"skills": picked, "source": "reuse"})
             return self._run_after_pick(user_input, picked, do_lint, history, emit)
 
-        # 模型没选出来 → 不兜底，直接把判断权交回用户
+        # 没选出来 → 不兜底，直接把判断权交回用户
         #
         # 2026-10-16 按用户要求：不再硬塞「主技能」。
         # 硬塞的后果是把不相关的技能拼进 system prompt，产出不可控。
-        # 这里如实返回，让前端提示用户换个说法或手动选技能。
+        # 2026-10-17 再细分：把「确实没匹配 / 指定名字无效 / 技能库空 / 判断接口出错」
+        # 四种情况分开报 —— 前三种该改描述或修配置，最后一种该查服务，
+        # 糊成一句「换个说法」会让人白折腾。
         if not picked:
-            emit("no_skill", {
-                "reason": "没有找到能完成这个需求的技能",
-                "hint": "换个说法描述你的需求，或在左侧手动勾选要用的技能",
-            })
+            reason, hint = self._no_skill_text(source)
+            emit("no_skill", {"reason": reason, "hint": hint, "kind": source})
             return {
                 "skills_used": [],
                 "generate": None,
                 "lint": None,
                 "need_user_action": True,
-                "message": (
-                    "没找到合适的技能来完成这个需求。\n"
-                    "你可以：\n"
-                    "  1. 换个说法再描述一次（说清要做什么、针对哪个平台/模型）\n"
-                    "  2. 在左侧技能列表里手动勾选后再发送"
-                ),
+                "reason_kind": source,
+                "message": f"{reason}\n\n{hint}",
             }
 
         # ①.⑤ 整理技能列表（当前不补齐，只去重校验）
@@ -594,6 +711,28 @@ class Agent:
                 emit("linted", {"error": str(e)})
         elif do_lint and not lint_skill:
             emit("lint_skipped", {"reason": "仓库里没有质检技能，跳过质检"})
+
+        # ⑤ 修正：质检报告只说明「哪里不对」，用户要的是「改好的成稿」。
+        # 2026-10-17 补齐 —— 此前这段只在 feishu_bot.py 里，网页端永远看不到 ③。
+        # 修正失败不影响主流程：生成和质检结果照样返回，只是少了定稿那一段。
+        lint_text = (result.get("lint") or {}).get("content") or ""
+        if lint_text and gen["content"] and not gen_is_lint:
+            gen_skill = next(
+                (n for n in picked if "lint" not in n.lower()),
+                picked[0] if picked else None,
+            )
+            emit("revising", {"skill": gen_skill})
+            try:
+                rev = self.revise(gen["content"], lint_text, gen_skill)
+            except Exception as e:
+                rev = {"issues": None, "revised": None, "content": "", "error": str(e)}
+            if rev.get("revised") or rev.get("issues"):
+                result["revision"] = rev
+                emit("revised", {"chars": len(rev.get("revised") or "")})
+            else:
+                emit("revise_skipped", {
+                    "reason": rev.get("error") or "模型没有给出修正稿，已跳过错",
+                })
 
         return result
 
