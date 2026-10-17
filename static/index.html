@@ -339,7 +339,7 @@
     <p><span class="dot"></span>已加载 <span id="skillCount">0</span> 个技能</p>
   </div>
   <div class="side-body">
-    <div class="sec-title">点一下填进输入框 · 右侧 › 看详情</div>
+    <div class="sec-title">点一下 · 召唤词填在输入框最前面（右侧 › 看详情）</div>
     <div id="skillList"></div>
   </div>
   <div class="side-foot" style="flex-direction:column;align-items:stretch;gap:9px">
@@ -563,8 +563,9 @@ function clearMemory(){
 }
 
 /* ============================== 技能列表 ==============================
-   31 个技能行为完全统一：
-     点整行  → 把它的「召唤词」填进输入框（风格=中文名，工具=一句现成的说法）
+     31 个技能行为完全统一：
+     点整行  → 把它的「召唤词」填到输入框最前面（风格=中文名，工具=一句现成的说法）
+               你原来写的内容顺移到后面，接着补需求即可
      点 ›    → 看这个技能的详情
    界面上只出现中文名，skill 的真名（seedance-xxx）放在 data-name 里。 */
 
@@ -618,8 +619,8 @@ function renderSkillList(){
   };
 
   document.getElementById('skillList').innerHTML =
-      (style.length ? grp('风格 · 点一下填进输入框', style.length) + style.map(row).join('')  : '')
-    + (tool.length  ? grp('工具 · 点一下填进输入框', tool.length) + tool.map(row).join('') : '');
+      (style.length ? grp('风格 · 点一下填在输入框最前面', style.length) + style.map(row).join('')  : '')
+    + (tool.length  ? grp('工具 · 点一下填在输入框最前面', tool.length) + tool.map(row).join('') : '');
 }
 
 /* ---------- 点技能 = 把「召唤词」填进输入框 ----------
@@ -643,8 +644,15 @@ function fillSkill(i){
   const el   = document.getElementById('input');
   const cur  = el.value;
 
-  /* 追加在末尾，不覆盖你已经写的东西 */
-  el.value = cur ? (cur.replace(/\s+$/, '') + ' ' + text) : text;
+  /* 召唤词放【最前面】，你原来的内容跟在后面。
+     2026-10-17 修：原来是追加到末尾，输入框已有内容时会变成
+     「你说的话 + 帮我质检下面这段提示词：」—— 读起来是反的，也和页面提示
+     「把召唤词填进输入框，再在后面补上你的需求」对不上。
+     召唤词本身都以「：」或「，」结尾，正好引着后面的内容。 */
+  // 连点两次同一个技能：已经以这句开头就别再叠一遍（长句叠两遍很脏）
+  if(!cur.trim().startsWith(text.trim())){
+    el.value = cur.trim() ? (text + cur.replace(/^\s+/, '')) : text;
+  }
   el.focus();
   el.setSelectionRange(el.value.length, el.value.length);
   autoGrow();
