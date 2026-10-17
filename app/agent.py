@@ -233,6 +233,15 @@ class Agent:
         if not system:
             system = "你是一个专业的 AI 视频提示词工程师。请根据用户需求写出分镜提示词。"
 
+        # 全局语言要求：技能模板和案例原文大多是英文，模型会照着输出英文。
+        # 2026-10-17 用户要求统一输出中文 —— 在这里对**所有**生成类调用生效
+        # （网页、飞书、质检、修正共用 generate，一处加，处处生效）。
+        system += (
+            "\n\n【输出语言（必须遵守）】最终产出的提示词正文一律使用简体中文："
+            "画面描述、镜头语言、主体动作、场景与光影等全部用中文书写；"
+            "仅模型名、专有名词和无法翻译的参数可保留英文。所有说明性文字也用中文。"
+        )
+
         messages = [{"role": "system", "content": system}]
         if history:
             messages.extend(history[-8:])  # 只带最近几轮，防超长
@@ -323,6 +332,27 @@ class Agent:
                             f"{'、'.join(lazy_names)}。"
                             "请现在调用 read_reference 工具把它读出来，"
                             "再据此产出最终结果。不要凭空推测，也不要让用户替你贴内容。"
+                        ),
+                    })
+                    continue
+
+                # ---- 兜底 3：资料明明已内联，模型却幻觉出「要读文件」 ----
+                # 2026-10-17 实测：cases.md 内联进 system 后，SKILL.md 正文仍写着
+                # 「Read references/cases.md」，模型照做去调 read_reference ——
+                # 但此时 tools=None（没有可调的工具），上面两个兜底都不覆盖，
+                # DSML 调用标记就原样漏进正文（用户看到 <｜DSML｜invoke…>）。
+                # 对策：短回复 + 提到要读文件 + 无工具 → 提醒它资料已在上下文里，直接产出。
+                if not tools and not nudged and len(text) < 2000 \
+                        and ("read_reference" in text or "DSML" in text
+                             or any(n.split("/", 1)[-1] in text for n in lazy_names)):
+                    nudged = True
+                    messages.append({"role": "assistant", "content": text})
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "（系统）本技能的全部参考资料已经完整包含在系统提示词里，"
+                            "没有任何文件需要读取，read_reference 也不可用。"
+                            "请忽略刚才的读取动作，直接基于已有资料产出最终结果。"
                         ),
                     })
                     continue
