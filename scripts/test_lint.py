@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """用 seedance-prompt-lint 质检已有的 output 产物。
 
-加载器只挂载 skills/seedance-prompt-lint 这一个技能（avoid 把 31 个技能全读进来）。
-改造前的原始版本备份在 _参考_技能/_orig-lint/。
+加载器只挂载 skills/seedance-prompt-lint 这一个技能（避免把 31 个技能全读进来）。
+改造前的原始版本备份在 backup_awesome/_orig-lint/（该目录不参与运行，可删）。
 
 用法:
     python scripts/test_lint.py                     # 质检下方默认列表

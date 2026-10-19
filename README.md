@@ -47,21 +47,32 @@
 ## 目录结构
 
 ```
-提示词智能体/
-├── run.py                    启动入口
-├── start.bat                 ★ 一键启动：双击即可（自动找 Python + 挑空闲端口 + 开浏览器）
-├── requirements.txt          运行依赖清单（fastapi + uvicorn，就这两个）
-├── config.json               配置（API Key 存这里）
+prompt_v/
+├── run.py                    网页服务启动入口（FastAPI + 静态页，同一个进程）
+├── feishu_bot.py             ★ 飞书通道：长连接接消息 → 跑同一条流水线 → 卡片回帖
+├── start.bat                 ★ 一键启动：双击即可（自动找 Python + 挑空闲端口 + 开浏览器 + 拉起飞书）
+├── requirements.txt          运行依赖清单（fastapi / uvicorn / lark-oapi）
+├── config.json               配置（API Key、飞书凭据存这里；已 gitignore）
 ├── config.example.json       配置模板
+├── .gitignore                不提交 config.json / output/ / update-status.json / .venv 等
+├── LICENSE
 ├── app/
 │   ├── skill_loader.py       ★ 核心：扫技能 → 拆 frontmatter → 拼 system prompt
-│   ├── agent.py              ★ 核心：挑技能 → 生成（含多轮对话、附件按需取）
-│   └── server.py             FastAPI 后端接口
+│   ├── agent.py              ★ 核心：挑技能 → 生成 → 质检 → 修正（含多轮对话、附件按需取）
+│   └── server.py             FastAPI 后端接口（聊天、配置、技能扫描、案例库、检查更新）
 ├── skills/                   ★ 技能包目录（放这里的会被自动加载）
 │   ├── 27 个场景技能         13 个来自 upstream + 14 个本项目生成
 │   ├── 2 个通用技能          来自 upstream（prompt-library / production-workflow）
 │   └── 2 个自有技能          prompt-lint（质检）/ storyboard-writer（分镜脚本）
-├── data/                     数据快照（834 条案例 + 27 个模板定义 + 811 条归类）
+├── data/
+│   ├── cases.json            834 条人工核验案例（含完整 prompt）
+│   ├── case-taxonomy.json    811 条「案例 → 模板」归类
+│   ├── style-library.json    14 个模板的结构化定义（中英双语）
+│   ├── templates-local.json  另外 13 个模板 + 对上面 14 个的改写层
+│   ├── skills-extra.json     ★ 本项目自己的：14 个自建技能的配置
+│   ├── skills.json / site-skills.json / site.json / stats.json
+│   ├── feishu-whitelist.json 飞书白名单（open_id / chat_id）
+│   └── update-status.json    「上次检查上游」的时间戳（运行时生成，已 gitignore）
 ├── docs/                     中文文档（27 篇模板详解 + 12 篇案例合集）
 ├── scripts/
 │   ├── build_extra_skills.py ★ 生成新增的 14 个技能（照抄 upstream 渲染逻辑）
@@ -69,13 +80,13 @@
 │   ├── test_pick_skills.py   挑技能准确率测试（26 项，含 lint 伴随判定）
 │   ├── test_lint.py          用质检技能跑 output/ 里的产物
 │   └── demo_one_skill.py     强制指定单个技能跑完整流水线（演示用）
-├── _参考_技能/                （不参与加载，只是备着）
+├── backup_awesome/           （不参与加载，**可整目录删掉**，不影响任何功能）
 │   ├── awesome-seedance/     upstream 源码仓库（data/ 与 docs/ 的来源）
 │   ├── seedance-prompt-lint/        自有技能原件（已拷进 skills/）
 │   ├── seedance-storyboard-writer/  自有技能原件（已拷进 skills/）
 │   └── _orig-lint/                   lint 技能改造前的 v1.0.0 备份
 ├── static/index.html         前端页面（单文件，无依赖）
-├── output/                   生成的提示词存这
+├── output/                   生成的提示词存这（已 gitignore）
 └── logs/
 ```
 
@@ -97,7 +108,16 @@ python scripts/build_extra_skills.py
 pip install -r requirements.txt
 ```
 
-就两个包（fastapi + uvicorn）。没有前端构建工具，页面是原生 HTML + JS，不用 `npm install`。
+三个包，分两拨：
+
+| 包 | 给谁用 | 不装会怎样 |
+|---|---|---|
+| `fastapi` + `uvicorn` | 网页服务（`run.py`） | **什么都不能跑**，必装 |
+| `lark-oapi` | 飞书通道（`feishu_bot.py`） | 网页照常跑；只是双击 `start.bat` 时飞书那个小窗口会报 `ModuleNotFoundError: No module named 'lark_oapi'` |
+
+`lark-oapi` 会顺带装下来 `requests` / `websockets` / `httpx` / `pycryptodome`——长连接和事件加解密要用，别手动卸。
+
+没有前端构建工具，页面是原生 HTML + JS，不用 `npm install`。
 
 > **Ubuntu 24.04 这类系统**有 PEP 668 限制，直接 `pip install` 会被系统拦下报 `externally-managed-environment`，
 > 必须先建虚拟环境：`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`

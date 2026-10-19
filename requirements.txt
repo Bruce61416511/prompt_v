@@ -9,7 +9,14 @@
 #     .venv/bin/pip install -r requirements.txt
 #     .venv/bin/python run.py --host 0.0.0.0 --port 8099
 #
-# 只有这两个包。不依赖任何前端构建工具，页面是原生 HTML + JS。
+# 不依赖任何前端构建工具，页面是原生 HTML + JS，不用 npm install。
 
+# 网页服务（run.py / app/）需要这两个
 fastapi>=0.110
 uvicorn>=0.27
+
+# 飞书通道（feishu_bot.py）需要。
+# 只跑网页版的话装不装都行 —— feishu_bot.py 是独立进程，不启动它就不会 import 这个包。
+# 除了 lark-oapi 本身，它还会带下来 requests / websockets / httpx / pycryptodome，
+# 这些都是长连接和加解密要用的，别手动卸掉。
+lark-oapi>=1.3
