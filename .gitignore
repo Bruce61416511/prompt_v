@@ -14,6 +14,9 @@ output/
 # 运行时生成：记录当前服务监听的端口，供 start.bat 判断「服务是否已经在跑」。
 .runtime-port
 
+# 后台模式的日志和 pid（start.bat 用 pythonw 静默起进程后，输出只能写进这里）
+logs/
+
 # Python 虚拟环境（部署到服务器时会建）
 .venv/
 venv/

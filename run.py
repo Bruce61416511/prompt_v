@@ -95,11 +95,18 @@ def main():
     ap.add_argument("--skills", default=None, help="技能包目录（默认用项目自带的 skills/）")
     ap.add_argument("--open", action="store_true", help="启动后自动打开浏览器")
     ap.add_argument("--reload", action="store_true", help="开发模式：改代码自动重启")
+    ap.add_argument("--allow-guest-write", action="store_true",
+                    help="放开局域网访客的写权限（默认访客只读：能看案例，不能生成、不能改配置）")
     args = ap.parse_args()
 
     # 只有显式传了 --skills 才覆盖环境变量；否则环境变量优先，最后兜底到项目自带目录
     if args.skills:
         os.environ["SKILLS_DIR"] = str(Path(args.skills).expanduser().resolve())
+
+    # 访客只读开关。必须在 app.server 被导入之前设好——它是 import 时读这个变量的，
+    # 而 uvicorn.run("app.server:app") 是延迟导入，所以这里来得及。
+    if args.allow_guest_write:
+        os.environ["GUEST_READONLY"] = "0"
 
     # ---------------------------------------------------------------- 定端口
     raw = str(args.port).strip().lower()

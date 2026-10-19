@@ -11,9 +11,17 @@
 #
 # 不依赖任何前端构建工具，页面是原生 HTML + JS，不用 npm install。
 
-# 网页服务（run.py / app/）需要这两个
+# 网页服务（run.py / app/）需要这三个
 fastapi>=0.110
 uvicorn>=0.27
+
+# app/agent.py 顶层 import openai，缺了服务直接起不来（不是可选）
+openai>=1.30
+
+# app/skill_loader.py 解析 SKILL.md 的 frontmatter 用。
+# 没装也能跑（有逐行兜底），但 description 里带冒号 / 引号 / 嵌套时会解析歪，
+# 表现出来就是「技能选不上」或描述被截断，所以建议装。
+pyyaml>=6.0
 
 # 飞书通道（feishu_bot.py）需要。
 # 只跑网页版的话装不装都行 —— feishu_bot.py 是独立进程，不启动它就不会 import 这个包。

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -84,17 +84,29 @@ def _load_skill_whitelist() -> list[str] | None:
 
 
 def _save_cfg(cfg: LLMConfig) -> None:
+    """只覆盖大模型那四个键，其余内容原样保留。
+
+    以前这里是把整个文件重写成四个键，结果网页端点一次「保存设置」，
+    config.json 里的 feishu.app_id / app_secret 就被抹掉了 —— 飞书通道
+    下次启动直接报「还没有 feishu.app_id」，而且要重新去后台抄一遍密钥。
+    """
+    data: dict = {}
+    if CONFIG_FILE.is_file():
+        try:
+            loaded = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            data = {}          # 文件坏了就重新写一份，别让保存失败
+
+    data.update({
+        "base_url": cfg.base_url,
+        "api_key": cfg.api_key,
+        "model": cfg.model,
+        "temperature": cfg.temperature,
+    })
     CONFIG_FILE.write_text(
-        json.dumps(
-            {
-                "base_url": cfg.base_url,
-                "api_key": cfg.api_key,
-                "model": cfg.model,
-                "temperature": cfg.temperature,
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
+        json.dumps(data, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -108,6 +120,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------- 局域网访客只读
+# 这个服务本来只监听 127.0.0.1，没有任何鉴权，所以以前不用管权限。
+# 一旦用 --host 0.0.0.0 开到局域网，同一网段的人就什么都能干：
+# 改模型配置、拿你的 key 生成提示词（花你的钱）。但「看案例」是只读需求，
+# 所以这里按来源 IP 区分：本机全权限，其他机器只允许 GET。
+# 想让访客也能生成，启动时加 --allow-guest-write（或 GUEST_READONLY=0）。
+_GUEST_READONLY = os.environ.get("GUEST_READONLY", "1") != "0"
+_LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+@app.middleware("http")
+async def _block_guest_writes(request, call_next):
+    if _GUEST_READONLY and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        peer = request.client.host if request.client else ""
+        if peer not in _LOCAL_HOSTS:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "局域网访客为只读模式：可以浏览案例，但不能生成或改配置。"
+                                   "（要放开，启动时加 --allow-guest-write）"},
+            )
+    return await call_next(request)
 
 loader = SkillLoader(SKILLS_DIR, include=_load_skill_whitelist())
 cfg = _load_cfg()

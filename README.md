@@ -50,8 +50,9 @@
 prompt_v/
 ├── run.py                    网页服务启动入口（FastAPI + 静态页，同一个进程）
 ├── feishu_bot.py             ★ 飞书通道：长连接接消息 → 跑同一条流水线 → 卡片回帖
-├── start.bat                 ★ 一键启动：双击即可（自动找 Python + 挑空闲端口 + 开浏览器 + 拉起飞书）
-├── requirements.txt          运行依赖清单（fastapi / uvicorn / lark-oapi）
+├── start.bat                 ★ 一键启动：双击即后台静默起（不留窗口）+ 开浏览器；stop/check/fg 另有参数
+├── start-lan.bat             ★ 双击这个 = 开给局域网同事看（等于 start.bat lan，访客只读）
+├── requirements.txt          运行依赖清单（fastapi / uvicorn / openai / pyyaml / lark-oapi）
 ├── config.json               配置（API Key、飞书凭据存这里；已 gitignore）
 ├── config.example.json       配置模板
 ├── .gitignore                不提交 config.json / output/ / update-status.json / .venv 等
@@ -65,7 +66,7 @@ prompt_v/
 │   ├── 2 个通用技能          来自 upstream（prompt-library / production-workflow）
 │   └── 2 个自有技能          prompt-lint（质检）/ storyboard-writer（分镜脚本）
 ├── data/
-│   ├── cases.json            834 条人工核验案例（含完整 prompt）
+│   ├── cases.json            851 条人工核验案例（含完整 prompt）
 │   ├── case-taxonomy.json    811 条「案例 → 模板」归类
 │   ├── style-library.json    14 个模板的结构化定义（中英双语）
 │   ├── templates-local.json  另外 13 个模板 + 对上面 14 个的改写层
@@ -77,6 +78,8 @@ prompt_v/
 ├── scripts/
 │   ├── build_extra_skills.py ★ 生成新增的 14 个技能（照抄 upstream 渲染逻辑）
 │   ├── sync_upstream.py      ★ 从上游拉最新数据并同步（左下角「检查更新」调的就是它）
+│   ├── _silent.pyw           后台模式的启动器（把输出接到 logs/，并写 pid 供 stop 用）
+│   ├── lan_ip.py             算出本机局域网 IP（start.bat lan 打印地址用）
 │   ├── test_pick_skills.py   挑技能准确率测试（26 项，含 lint 伴随判定）
 │   ├── test_lint.py          用质检技能跑 output/ 里的产物
 │   └── demo_one_skill.py     强制指定单个技能跑完整流水线（演示用）
@@ -87,7 +90,7 @@ prompt_v/
 │   └── _orig-lint/                   lint 技能改造前的 v1.0.0 备份
 ├── static/index.html         前端页面（单文件，无依赖）
 ├── output/                   生成的提示词存这（已 gitignore）
-└── logs/
+└── logs/                     后台模式的输出：run.log / feishu_bot.log + 两个 pid（已 gitignore）
 ```
 
 **加新技能**：在 `skills/` 下建文件夹，放 `SKILL.md`（开头要有 `name:` 和 `description:`），点页面左下角「重新扫描」即刻生效，**不用重启**。
@@ -108,14 +111,20 @@ python scripts/build_extra_skills.py
 pip install -r requirements.txt
 ```
 
-三个包，分两拨：
+四个包，分三拨：
 
 | 包 | 给谁用 | 不装会怎样 |
 |---|---|---|
 | `fastapi` + `uvicorn` | 网页服务（`run.py`） | **什么都不能跑**，必装 |
-| `lark-oapi` | 飞书通道（`feishu_bot.py`） | 网页照常跑；只是双击 `start.bat` 时飞书那个小窗口会报 `ModuleNotFoundError: No module named 'lark_oapi'` |
+| `openai` | `app/agent.py`（顶层 import） | **什么都不能跑**。报 `ModuleNotFoundError: No module named 'openai'`，服务起不来 |
+| `pyyaml` | `app/skill_loader.py` 解析 SKILL.md 的 frontmatter | 能跑，但会退化成逐行解析：`description` 里带冒号 / 引号 / 嵌套时解析歪，表现为「技能选不上」或描述被截断 |
+| `lark-oapi` | 飞书通道（`feishu_bot.py`） | 网页照常跑；`start.bat` 会跳过飞书并提示，`logs/feishu_bot.log` 里是 `ModuleNotFoundError: No module named 'lark_oapi'` |
 
 `lark-oapi` 会顺带装下来 `requests` / `websockets` / `httpx` / `pycryptodome`——长连接和事件加解密要用，别手动卸。
+
+> 第一次 `import lark_oapi` 在本机实测要 **10 秒左右**（它本体 7.7 MB，导入时编译一堆模块）。
+> 所以点完 `start.bat` 之后，`logs/feishu_bot.log` 里要过十来秒才出现「长连接启动中」，不是没起来。
+> `start.bat` 自己只检查「包在不在」（`find_spec`，0.6 秒），不会去真 import。
 
 没有前端构建工具，页面是原生 HTML + JS，不用 `npm install`。
 
@@ -134,25 +143,100 @@ pip install -r requirements.txt
 
 ### 3. 启动
 
-**最省事：双击 `start.bat`**（项目根目录里一个，桌面上也放了一个入口）。它把两个进程一起管了：
+**最省事：双击 `start.bat`**。默认就是**后台静默启动**——不留下任何窗口：
 
 | 它做什么 | 说明 |
 |---|---|
-| **网页服务**（run.py） | 已在跑就只开浏览器，不重复启动；没在跑就从 8099 起自动挑空闲端口启动并打开页面 |
-| **飞书通道**（feishu_bot.py） | 已在跑就跳过；没在跑就在**独立的小窗口**里拉起——窗口标题写着"closing this window = channel stopped" |
+| **网页服务**（run.py） | 已在跑就只开浏览器，不重复启动；没在跑就用 `pythonw.exe` 无窗口起在后台，从 8099 起自动挑空闲端口 |
+| **飞书通道**（feishu_bot.py） | 已在跑就跳过；没在跑同样无窗口起在后台 |
+| **黑窗口** | 只闪约 6 秒，打印完就自己关，什么都不留下 |
 
-两个互相独立：关掉飞书的小窗口不影响网页，关掉主窗口不影响飞书。
-
-**改了代码想强制重启？** 带参数运行：
+窗口关掉之后服务不会跟着死（`pythonw` 没有控制台，不挂在那个窗口上）。**stop 要靠命令**，因为没窗口可关：
 
 ```bat
-start.bat restart
+start.bat stop
 ```
 
-它会先把网页 + 飞书两个进程都杀掉，再全部重新拉起（普通双击永远是"复用不杀"，防止误停）。
+其它模式：
+
+```bat
+start.bat fg        :: 想看日志时用：网页跑在当前窗口，关窗口=停服务
+start.bat restart   :: 先停再后台起（改了代码用这个）
+start.bat open      :: 只打开已经在跑的服务的页面
+start.bat check     :: 只体检，不启动不改东西
+start.bat lan       :: 开给局域网同事看（访客只读）
+start.bat lan write :: 同上，但允许访客生成和改设置
+```
+
+**给同局域网的同事看**：双击 `start-lan.bat`（不是 `start.bat`）。
+
+> 为什么要多一个文件：`start.bat` 按第一个参数决定模式，而**双击不会传参数**，
+> 所以双击 `start.bat` 永远是本机专用模式（只听 `127.0.0.1`），同事连不上。
+> `start-lan.bat` 只是替你执行了 `start.bat lan`，内容就一行 `call`。
+
+也可以手打命令：
+
+```bat
+start.bat lan
+```
+
+它会绑 `0.0.0.0:8099`，然后把地址打出来：
+
+```
+  This PC   : http://127.0.0.1:8099
+  Colleagues: http://192.168.3.161:8099
+```
+
+同事在浏览器里输上面那个 `192.168.x.x:8099` 就能看案例、翻技能、搜案例库。
+
+| 权限 | 本机（127.0.0.1） | 局域网访客 |
+|---|---|---|
+| 看案例 / 技能 / 页面 | ✅ | ✅ |
+| 生成提示词、改设置（POST） | ✅ | ❌ 返回 403 |
+| 想放开 | — | 用 `start.bat lan write` |
+
+> **这是刻意的**：服务本身没有任何登录，`POST /api/config` 谁都能调。不拦住的话，
+> 同一网段任何人都能拿你的 API Key 生成提示词（花你的钱），或者改掉模型配置。
+> 拦截按来源 IP 判断，实现在 `app/server.py` 的 `_block_guest_writes`。
+
+**防火墙**：Windows 默认拦入站，同事会连不上。已经加好规则了（`PromptAgent 8099`，TCP 8099 放行）。
+换电脑或规则被清掉时，用**管理员** cmd 跑一次：
+
+```bat
+netsh advfirewall firewall add rule name="PromptAgent 8099" dir=in action=allow protocol=TCP localport=8099
+```
+
+> 注意：`lan` 模式起来的服务也在 8099 上，和普通模式是同一个端口，两者不会打架。
+> 但只要你没 `stop`，它就仍然对局域网开着——**不想被看了就 `start.bat stop`**。
+> 另外这是明文 HTTP + 无鉴权，**只在可信的办公局域网里用**，别在咖啡厅 WiFi 上开。
+
+**后台模式怎么排查问题？** 输出全在 `logs/` 里（已 gitignore）：
+
+| 文件 | 内容 |
+|---|---|
+| `logs/run.log` | 网页服务：启动横幅、uvicorn 日志、每个请求 |
+| `logs/feishu_bot.log` | 飞书通道：长连接状态、收到/回复的每条消息、白名单拦截记录 |
+| `logs/run.pid` / `logs/feishu_bot.pid` | 两个进程的 pid，`start.bat stop` 靠它精确点杀 |
+
+后台模式下 `print` 能正常工作的原因见 `scripts/_silent.pyw`：`pythonw` 的 stdout 是 None，任何 `print` 都会抛 `AttributeError` 把自己干掉，所以启动器先把 stdout/stderr 接到日志文件再跑目标脚本。
+
+> 浏览器标签页会自动打开——那是你要用的页面，不算多出来的窗口。不想要的话把 `start.bat` 里 `run.py --port auto --open` 的 `--open` 去掉。
+
+**换电脑 / 起不来想先体检？**
+
+```bat
+start.bat check
+```
+
+只报告不启动、不改任何东西。逐项打印找到的 Python 路径，以及 `fastapi` / `uvicorn` / `openai` / `pyyaml` / `lark-oapi` / `pythonw` / `config.json` / `skills/` 各是 ok 还是 MISSING，最后再报两个进程在不在跑。
+
+找 Python 的顺序（命中即停）：项目里的 `.venv\Scripts\python.exe` → `C:\Python3xx\` → `%LOCALAPPDATA%\Programs\Python\Python3xx\` → `py -3` → PATH 上的 `python`。**一个都没有会自动建 `.venv` 并把 `requirements.txt` 装进去**，不污染系统 Python；一个都找不到才报错并给出 python.org 下载地址。
 
 > 提示：start.bat 里的提示文字是**英文的**——这是刻意的。中文批处理在 cmd 里有编码坑
 > （UTF-8+chcp 会截断命令行、GBK 在编辑器里乱码），纯 ASCII 两边都干净。
+>
+> 另外：**改这个文件必须保持 CRLF 行尾**。LF 行尾下 `call :label` 会间歇性报
+> 「系统找不到指定的批处理标签」，症状是启动脚本莫名跳过某一段。
 
 命令行方式也一样，只是参数自己写：
 
@@ -200,7 +284,7 @@ python run.py --reload                 # 开发模式，改代码自动重启
 
 ### 案例库（顶栏第二个页签）
 
-顶栏切到「🎬 案例库」，834 条上游案例直接翻：
+顶栏切到「🎬 案例库」，851 条上游案例直接翻：
 
 - **卡片墙**：封面 + 中文标题 + 版本/证据徽章 + 热度，滚动到底自动加载下一批（一批 60 条）
 - **筛选**：按版本（2.5 / 2.0）、按 27 个模板分类、按作者、只看 L2 人审实测；顶部搜索框能搜标题、prompt 正文和作者
@@ -217,7 +301,7 @@ python run.py --reload                 # 开发模式，改代码自动重启
 | 顶栏 `清空` | 清空页面 + 清空记忆 |
 | 左侧技能列表（31 个，行为完全统一） | **点一下 = 把它的名字填进输入框**（风格填中文名，工具填一句现成的说法），接着补上你的要求发送即可。点右侧 `›` 看技能详情 |
 | 左下角 `重新扫描` | 加了/删了技能文件夹后点一下，不用重启 |
-| 左下角 `检查更新` | 去上游看一眼有没有新案例。**按钮下面那行字就是状态**：`数据 2026-10-14（834 条） · 检查 今天 19:08` |
+| 左下角 `检查更新` | 去上游看一眼有没有新案例。**按钮下面那行字就是状态**：`数据 2026-10-18（851 条） · 检查 今天 19:08` |
 | 左下角 `设置` | 改 API Key / 模型 |
 
 侧栏显示的是**中文名**（取自技能标题），下面一行小字是去掉 `seedance-` 前缀的英文短名；
@@ -464,7 +548,7 @@ python scripts/sync_upstream.py --force-regen   # 数据没变也重生成技能
 ### 那行字怎么读
 
 ```
-数据 2026-10-14（834 条） · 检查 今天 19:08
+数据 2026-10-18（851 条） · 检查 今天 19:08
 ```
 
 | 位置 | 含义 |
