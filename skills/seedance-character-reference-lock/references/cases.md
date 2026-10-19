@@ -210,7 +210,7 @@ Preserve her body po
 
 ## E3 · Seamless Outfit Changes Through a Pixel Field
 
-- Seedance 2.0 · creator: @Just_sharon7 · heat: 84
+- Seedance 2.0 · creator: @Just_sharon7 · heat: 83
 - Evidence: [GoodCase](https://goodcase.ai/cases/just-sharon7-seedance-ai-0109d7f993a1) · [finished media](https://media.goodcase.ai/cases/53e3364dede4.mp4) · [poster](https://media.goodcase.ai/cases/1245b6f5602a.jpg) · [original source](https://x.com/Just_sharon7/status/2093171913698988151)
 - Summary: AI finally gets outfit transformations right. Made by using GPT Image 2 + Seedance 2.0 on @FishCreativeHQ prompt Image 1
 
@@ -404,7 +404,7 @@ dig
 
 ## E4 · Seedance 2.5 Multi-Reference Character Lock Short
 
-- Seedance 2.5 · creator: @ElsaSofia__AI · heat: 64
+- Seedance 2.5 · creator: @ElsaSofia__AI · heat: 63
 - Evidence: [GoodCase](https://goodcase.ai/cases/elsasofia-ai-seedance-ai-e087ab2aed4b) · [finished media](https://media.goodcase.ai/cases/7a28212f4cc8.mp4) · [poster](https://media.goodcase.ai/cases/d0baab1d99c4.jpg) · [original source](https://x.com/ElsaSofia__AI/status/2089306746804375878)
 - Summary: Create with Seedance 2.5 Prompt: CHARACTER REFERENCE — MANDATORY: Face — Reference Image 3. Outfit — short dark bob, bla
 
@@ -461,7 +461,7 @@ Cinematic realistic quality, seamless frame-to-frame continuity.
 
 ## E6 · Seedance 2.5 Boyfriend-POV Couple Short with an Authentic Handheld Phone Look
 
-- Seedance 2.5 · creator: @liyue_ai · heat: 29
+- Seedance 2.5 · creator: @liyue_ai · heat: 28
 - Evidence: [GoodCase](https://goodcase.ai/cases/liyue-ai-seedance-ai-dd263958ed42) · [finished media](https://media.goodcase.ai/media/video/liyue-ai-seedance-ai-dd263958ed42.mp4) · [poster](https://media.goodcase.ai/media/poster/liyue-ai-seedance-ai-dd263958ed42.jpg) · [original source](https://x.com/liyue_ai/status/2088956829590266002)
 - Summary: 用我做的Seedance 2.5导演Skill， 将提示词优化了一下。 目前效果更加自然真实一点了， 特别是之前的脸红和表情太做作了。 提示词： 时长：20秒 画幅：9:16竖屏 风格：情侣POV手持手机实拍感（Boyfriend POV）
 

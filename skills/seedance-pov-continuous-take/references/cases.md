@@ -142,7 +142,7 @@ Blue sketch lines trace around the person. The same person, in the exact same po
 
 ## E3 · POV Cliff Jump into a Turquoise Volcanic Canyon Spring
 
-- Seedance 2.5 · creator: @abxxai · heat: 73
+- Seedance 2.5 · creator: @abxxai · heat: 72
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-a-hidden-volcanic-spring-canyon-deep-in-a-pacific-northwest-pine-forest-on-a-br-ff48a4636c95) · [finished media](https://media.goodcase.ai/cases/a95146ef0034.mp4) · [poster](https://media.goodcase.ai/cases/ba78b17e3025.jpg) · [original source](https://x.com/abxxai/status/2103861170625286334)
 - Summary: omg...Seedance 2.5 can do real POV physics now one prompt on @FishCreativeHQ.. bookmark this 👇 Prompt: SEEDANCE 2.5 | TEXT TO VIDEO | SINGLE CONTINUOUS TAKE | …
 
@@ -180,7 +180,7 @@ The speed ramps smoothly back to normal and the stomach drops.
 
 ## E4 · First-Person POV Dragon Rider Cinematic
 
-- Seedance 2.5 · creator: @frametheory058 · heat: 71 · stability: 77
+- Seedance 2.5 · creator: @frametheory058 · heat: 70 · stability: 77
 - Evidence: [GoodCase](https://goodcase.ai/cases/first-person-pov-dragon-rider-cinematic) · [finished media](https://media.goodcase.ai/cases/79c3393a23c8.mp4) · [poster](https://media.goodcase.ai/cases/464939ccd5ab.jpg) · [original source](https://x.com/frametheory058/status/2087007818721423855)
 - Summary: An epic, photorealistic 8K sequence of riding a crimson-obsidian dragon over emerald cliffs and diving into the ocean with cinematic sound design.
 
@@ -208,7 +208,7 @@ A dark figure leaps from a skyscraper ledge and free-falls through a neon-drench
 
 ## E6 · A Maglev Train Traveling Through History
 
-- Seedance 2.5 · creator: @oggii_0 · heat: 64 · stability: 55
+- Seedance 2.5 · creator: @oggii_0 · heat: 63 · stability: 55
 - Evidence: [GoodCase](https://goodcase.ai/cases/oggii-0-seedance-ai-a473e1b2b456) · [finished media](https://media.goodcase.ai/media/video/oggii-0-seedance-ai-a473e1b2b456.mp4) · [poster](https://media.goodcase.ai/media/poster/oggii-0-seedance-ai-a473e1b2b456.jpg) · [original source](https://x.com/oggii_0/status/2092938748073849067)
 - Summary: Journey to the past time travel video using Seedance 2.5 on Higgsfield Prompt: Create a 30-second vertical 9:16 first-pe
 

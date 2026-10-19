@@ -601,7 +601,7 @@ Camera: mixture of handheld close-ups, smooth tracking shots, wide establishing 
 
 ## E5 · Seedance 2.5 Realistic Cycling Vlog: 30-Second Action Cam + Front Camera + Tracking Shot Edit
 
-- Seedance 2.5 · creator: @johnAGI168 · heat: 22 · stability: 74
+- Seedance 2.5 · creator: @johnAGI168 · heat: 21 · stability: 74
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-2-5-vlog-30-3b85f315bb08) · [finished media](https://media.goodcase.ai/media/video/seedance-2-5-vlog-30-3b85f315bb08.mp4) · [poster](https://media.goodcase.ai/media/poster/seedance-2-5-vlog-30-3b85f315bb08.jpg) · [original source](https://x.com/johnAGI168/status/2086014766846275817)
 - Summary: 30 秒竖屏真实骑行 vlog:运动相机、手机前摄、伴随车跟拍三种机位混剪,4K photorealistic、阴天柔光、皮肤汗光与毛孔、无美颜。prompt 用【风格】【时长】等中文结构化区块把机位切换和时间轴写死,是'把剪辑思维写进 prompt'的范本。
 
@@ -695,7 +695,7 @@ Seedance 2.5 prompt 👇
 
 ## E6 · Seedance 2.5 Maldives Cycling Documentary in One Long Take
 
-- Seedance 2.5 · creator: @techhalla · heat: 21 · stability: 80
+- Seedance 2.5 · creator: @techhalla · heat: 20 · stability: 80
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-2-5-f3651857750b) · [finished media](https://media.goodcase.ai/media/video/seedance-2-5-f3651857750b.mp4) · [poster](https://media.goodcase.ai/media/poster/seedance-2-5-f3651857750b.jpg) · [original source](https://x.com/techhalla/status/2088099038839316601)
 - Summary: 作者用 Seedance 2.5 生成马尔代夫度假村骑行的 18 秒纪实跟拍，以两秒一段的时间线安排人物、游客、员工、陆龟、鹦鹉、蝠鲼与鲸鱼动作，并统一约束手持镜头、胶片颗粒和连续运动。
 

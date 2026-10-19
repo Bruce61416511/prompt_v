@@ -125,7 +125,7 @@ Realistic TV broadcast quality, detailed ceramic shatter physics, sharp edge det
 
 ## E4 · Pastel Rainbow Hair Transformation in a Neon Retro Salon
 
-- Seedance 2.0 · creator: @AIwithJessica · heat: 74 · stability: 68
+- Seedance 2.0 · creator: @AIwithJessica · heat: 73 · stability: 68
 - Evidence: [GoodCase](https://goodcase.ai/cases/aiwithjessica-seedance-ai-8abd02dc4e6a) · [finished media](https://media.goodcase.ai/media/video/aiwithjessica-seedance-ai-8abd02dc4e6a.mp4) · [poster](https://media.goodcase.ai/media/poster/aiwithjessica-seedance-ai-8abd02dc4e6a.jpg) · [original source](https://x.com/AIwithJessica/status/2093127123687108856)
 - Summary: From boring to BOLD 🌈, she walked in nervous... walked out obsessed. This pastel rainbow transformation hits different
 
@@ -211,7 +211,7 @@ Important: Keep the air fryer design consistent with the reference. Do not chang
 
 ## E6 · Twenty-Second Luxury Fantasy in a Gold and Crimson Palace
 
-- Seedance 2.5 · creator: @noorlewisx · heat: 67 · stability: 83
+- Seedance 2.5 · creator: @noorlewisx · heat: 66 · stability: 83
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-a-cinematic-20-second-luxury-fantasy-video-in-an-opulent-gold-and-crimson-palac-3c3a7212c358) · [finished media](https://media.goodcase.ai/media/video/seedance-a-cinematic-20-second-luxury-fantasy-video-in-an-opulent-gold-and-crimson-palac-3c3a7212c358.mp4) · [poster](https://media.goodcase.ai/media/poster/seedance-a-cinematic-20-second-luxury-fantasy-video-in-an-opulent-gold-and-crimson-palac-3c3a7212c358.jpg) · [original source](https://x.com/noorlewisx/status/2095741799402758204)
 - Summary: She jeweled her iPhone like a crown. Then signed a royal letter in pearls. Made with seedance 2.5 Prompt: A cinematic 20-second luxury fantasy video in an opule…
 

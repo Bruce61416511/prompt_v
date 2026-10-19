@@ -320,7 +320,7 @@ Important motion requirements: The idols must dance first before putting their h
 
 ## E5 · Idol Stage Show Under the Spotlight
 
-- Seedance 2.5 · creator: @Chaemate_ · heat: 66
+- Seedance 2.5 · creator: @Chaemate_ · heat: 65
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-use-seedance-2-5-model-j-pop-idol-mv-skill-105b52156ccd) · [finished media](https://media.goodcase.ai/cases/0e627478fcfb.mp4) · [poster](https://media.goodcase.ai/cases/506d85ad9946.jpg) · [original source](https://x.com/Chaemate_/status/2103333680806760472)
 - Summary: She doesn’t ask for the spotlight. She takes it. Watch Me — full K-Pop idol performance MV Created with Seedance 2.5 on @Flovaai × Seedance 2.5, using Nano Bana…
 
@@ -420,7 +420,7 @@ Smooth cinematic camera movement, realistic human motion, detailed skin and fabr
 
 ## E7 · Korean Rapper Performing Across Cinematic Stages
 
-- Seedance 2.5 · creator: @AIwithSynthia · heat: 57
+- Seedance 2.5 · creator: @AIwithSynthia · heat: 56
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-create-a-ultra-realistic-cinematic-rap-music-video-featuring-a-confident-young-8cad375cc1ea) · [finished media](https://media.goodcase.ai/cases/633b12e59350.mp4) · [poster](https://media.goodcase.ai/cases/bb9a4f80c61a.jpg) · [original source](https://x.com/AIwithSynthia/status/2104412786570981576)
 - Summary: Rap, rhythm, and a girl who turns every beat into a cinematic moment. 🎤 Seedance 2.5 on @higgsfield Prompt : Create a ultra-realistic cinematic rap music video…
 

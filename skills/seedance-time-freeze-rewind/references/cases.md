@@ -80,7 +80,7 @@ Photorealistic, ultra-detailed wind and hair physics, perfect motion blur only o
 
 ## E4 · 90s Diner Time Freeze Effect
 
-- Seedance 2.5 · creator: @techhalla · heat: 58
+- Seedance 2.5 · creator: @techhalla · heat: 57
 - Evidence: [GoodCase](https://goodcase.ai/cases/90s-diner-time-freeze-effect) · [finished media](https://media.goodcase.ai/media/video/90s-diner-time-freeze-effect.mp4) · [poster](https://media.goodcase.ai/media/poster/90s-diner-time-freeze-effect.jpg) · [original source](https://x.com/techhalla/status/2085200942060691807)
 - Summary: A cinematic video prompt for Seedance 2.5 featuring a high-physics diner collision where time freezes, allowing a character to interact with suspended objects before resuming in real-time.
 
@@ -104,7 +104,7 @@ Photorealistic, ultra-detailed fluid and object physics, perfect volume and surf
 
 ## E5 · A Clockmaker Freezes His Workshop with a Mysterious Clock
 
-- Seedance 2.5 · creator: @AIwithZeeshi · heat: 56
+- Seedance 2.5 · creator: @AIwithZeeshi · heat: 55
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-2-5-a-middle-aged-clockmaker-is-repairing-an-antique-pocket-watch-in-his-old-fashio-884d47f3cd40) · [finished media](https://media.goodcase.ai/cases/d10f69d84bce.mp4) · [poster](https://media.goodcase.ai/cases/4d464f7d59ce.jpg) · [original source](https://x.com/AIwithZeeshi/status/2108412888415400315)
 - Summary: Sometimes, one tiny discovery can change everything you know about reality. Created with Seedance 2.5. Prompt: A middle-aged clockmaker is repairing an antique …
 
@@ -122,7 +122,7 @@ Photorealistic cinematic fantasy, realistic mechanical gear interactions, believ
 
 ## E6 · A Mysterious Smile in a Frozen Crowd
 
-- Seedance 2.5 · creator: @AIwithSynthia · heat: 50
+- Seedance 2.5 · creator: @AIwithSynthia · heat: 49
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-create-an-ultra-realistic-cinematic-live-action-video-using-the-uploaded-refere-4e8d758c342e) · [finished media](https://media.goodcase.ai/cases/0e37d278ba43.mp4) · [poster](https://media.goodcase.ai/cases/15605829a601.jpg) · [original source](https://x.com/AIwithSynthia/status/2100414408069669001)
 - Summary: My STORM is here to give chills Seedance 2.5 on @itsPolloAI Prompt : Create an ultra-realistic cinematic live-action video using the uploaded reference image as…
 

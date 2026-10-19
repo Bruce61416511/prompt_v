@@ -176,7 +176,7 @@ Audio: Playful kitchen ambience, whisking, batter splashes, pancake flip, tiny f
 
 ## E6 · Pink-Haired Girl Falls and Awakens with Golden Eyes
 
-- Seedance 2.0 · creator: @Aiwithmaha · heat: 70 · stability: 79
+- Seedance 2.0 · creator: @Aiwithmaha · heat: 69 · stability: 79
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-created-a-dramatic-top-down-shot-of-a-pink-haired-anime-style-girl-falling-thro-b2957665e618) · [finished media](https://media.goodcase.ai/cases/feaa7925fc10.mp4) · [poster](https://media.goodcase.ai/cases/542781a44581.jpg) · [original source](https://x.com/Aiwithmaha/status/2102572922674225517)
 - Summary: Falling through the city, then turning into pure power. Anime energy with a cinematic twist. Created on seedance 2.0 Prompt: Created a dramatic top-down shot of…
 
@@ -196,7 +196,7 @@ A cozy Studio Ghibli-inspired cinematic cooking animation showing a delicious gr
 
 ## E8 · Explosive Motion-Graphics Character Reveal Trailer
 
-- Seedance 2.0 · creator: @ChillaiKalan__ · heat: 56 · stability: 80
+- Seedance 2.0 · creator: @ChillaiKalan__ · heat: 55 · stability: 80
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-create-an-explosive-motion-graphics-driven-character-reveal-trailer-in-16-9-e-97abc37074ae) · [finished media](https://media.goodcase.ai/media/video/seedance-create-an-explosive-motion-graphics-driven-character-reveal-trailer-in-16-9-e-97abc37074ae.mp4) · [poster](https://media.goodcase.ai/media/poster/seedance-create-an-explosive-motion-graphics-driven-character-reveal-trailer-in-16-9-e-97abc37074ae.jpg) · [original source](https://x.com/ChillaiKalan__/status/2095005119134020059)
 - Summary: Made with Seedance 2.0 Prompt: Create an explosive, motion-graphics-driven character reveal trailer in 16:9, exactly 13
 

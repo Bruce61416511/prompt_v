@@ -44,9 +44,27 @@ Character: woman from @Image 1 — same facial features, same long dark layered 
 [… truncated, full prompt on the goodcase.ai page]
 ```
 
-## E3 · California Sunset Seaside Perfume Commercial
+## E3 · Classic Mustang Golden Hour Drive
 
-- Seedance 2.0 · creator: @ShamiWeb3 · heat: 78 · stability: 80
+- Seedance 2.5 · creator: @Just_sharon7 · heat: 77 · stability: 81
+- Evidence: [GoodCase](https://goodcase.ai/cases/classic-mustang-golden-hour-drive) · [finished media](https://media.goodcase.ai/cases/d0b1b2f6886d.mp4) · [poster](https://media.goodcase.ai/cases/5144aead9488.jpg) · [original source](https://x.com/Just_sharon7/status/2085277106960007654)
+- Summary: A cinematic commercial-style prompt of a woman driving a vintage Mustang through a city at sunset, featuring elegant lighting and tracking shots.
+
+```text
+Cinematic 30-second video of a glamorous blonde woman driving a classic dark-green 1960s Ford Mustang coupe through a tree-lined city avenue at golden hour. She wears a patterned silk headscarf, large brown sunglasses, a brown blazer, and large statement rings (one yellow diamond, one emerald).
+
+Stylish slow-motion tracking shots of the car speeding past buildings and traffic. Close-up of her focused face, sunglasses catching the golden light. Close-up of her hands on the wooden steering wheel, rings glinting. Rear-view mirror reflection of her eyes. Her jeweled hand resting on the car door, wind catching a loose strand of hair from the headscarf.
+
+A red traffic light glowing as the Mustang idles, engine humming, heat shimmer off the hood. A motorcycle with a passenger weaves through traffic beside her. Wide low-angle shot of the Mustang's grille and headlights as it accelerates past camera. A bearded man in a black beanie stands on the sidewalk, watching the Mustang drive away into the sunlit street, his gaze lingering.
+
+New scenes: A brief shot of pedestrians and café awnings blurring past in the background bokeh. An aerial/drone-style shot pulling back to reveal the full tree-lined avenue as the Mustang weaves gently between light and shadow from the trees. A final slow-motion hero shot — the Mustang turning a corner into direct sunset flare, silhouette and lens flare dominating the frame, her profile briefly lit gold before the light overtakes the frame.
+
+Warm sunset lighting, lens flares, motion blur, elegant and mysterious atmosphere, high-end commercial style, anamorphic lens feel, shallow depth of field, watermark-free.
+```
+
+## E4 · California Sunset Seaside Perfume Commercial
+
+- Seedance 2.0 · creator: @ShamiWeb3 · heat: 77 · stability: 80
 - Evidence: [GoodCase](https://goodcase.ai/cases/shamiweb3-seedance-ai-5620b354e47d) · [finished media](https://media.goodcase.ai/media/video/shamiweb3-seedance-ai-5620b354e47d.mp4) · [poster](https://media.goodcase.ai/media/poster/shamiweb3-seedance-ai-5620b354e47d.jpg) · [original source](https://x.com/ShamiWeb3/status/2093133619883913232)
 - Summary: Turned ONE perfume bottle photo into a full cinematic commercial, sunset, silk, and sparkle included. No film crew. No e
 
@@ -76,24 +94,6 @@ Phase 2: Shot-by-Shot Timeline
 [00:14.5] Ultra-macro, flat-on. A slow-motion burst of the ombré liquid — teal swirling into blush-pink with fine suspended micro-bubbles, fully backlit and glowing. Camera holds with a subtle rota
 
 [… truncated, full prompt on the goodcase.ai page]
-```
-
-## E4 · Classic Mustang Golden Hour Drive
-
-- Seedance 2.5 · creator: @Just_sharon7 · heat: 77 · stability: 81
-- Evidence: [GoodCase](https://goodcase.ai/cases/classic-mustang-golden-hour-drive) · [finished media](https://media.goodcase.ai/cases/d0b1b2f6886d.mp4) · [poster](https://media.goodcase.ai/cases/5144aead9488.jpg) · [original source](https://x.com/Just_sharon7/status/2085277106960007654)
-- Summary: A cinematic commercial-style prompt of a woman driving a vintage Mustang through a city at sunset, featuring elegant lighting and tracking shots.
-
-```text
-Cinematic 30-second video of a glamorous blonde woman driving a classic dark-green 1960s Ford Mustang coupe through a tree-lined city avenue at golden hour. She wears a patterned silk headscarf, large brown sunglasses, a brown blazer, and large statement rings (one yellow diamond, one emerald).
-
-Stylish slow-motion tracking shots of the car speeding past buildings and traffic. Close-up of her focused face, sunglasses catching the golden light. Close-up of her hands on the wooden steering wheel, rings glinting. Rear-view mirror reflection of her eyes. Her jeweled hand resting on the car door, wind catching a loose strand of hair from the headscarf.
-
-A red traffic light glowing as the Mustang idles, engine humming, heat shimmer off the hood. A motorcycle with a passenger weaves through traffic beside her. Wide low-angle shot of the Mustang's grille and headlights as it accelerates past camera. A bearded man in a black beanie stands on the sidewalk, watching the Mustang drive away into the sunlit street, his gaze lingering.
-
-New scenes: A brief shot of pedestrians and café awnings blurring past in the background bokeh. An aerial/drone-style shot pulling back to reveal the full tree-lined avenue as the Mustang weaves gently between light and shadow from the trees. A final slow-motion hero shot — the Mustang turning a corner into direct sunset flare, silhouette and lens flare dominating the frame, her profile briefly lit gold before the light overtakes the frame.
-
-Warm sunset lighting, lens flares, motion blur, elegant and mysterious atmosphere, high-end commercial style, anamorphic lens feel, shallow depth of field, watermark-free.
 ```
 
 ## E5 · Thirty-Second Photoreal Nike Air Max Commercial
@@ -138,7 +138,7 @@ AUDIO: Keyboard and notification sounds at the start, building into energetic ci
 
 ## E6 · Amalfi Coast Luxury Jewelry Ad
 
-- Seedance 2.0 · creator: @Just_sharon7 · heat: 75 · stability: 83
+- Seedance 2.0 · creator: @Just_sharon7 · heat: 74 · stability: 83
 - Evidence: [GoodCase](https://goodcase.ai/cases/case-e53b614b0f42) · [finished media](https://media.goodcase.ai/media/video/case-e53b614b0f42.mp4) · [poster](https://media.goodcase.ai/media/poster/case-e53b614b0f42.jpg) · [original source](https://x.com/Just_sharon7/status/2080973878705434901)
 - Summary: 一份详细的脚本和提示词，用于制作一部以 20 世纪 50 年代复古海报女郎风格为主题、在阿马尔菲海岸拍摄的高端钻石珠宝广告。
 
@@ -177,40 +177,7 @@ Rivelazione
 Premium luxury logo animation. Fade to black.
 ```
 
-## E7 · A Fresh Laundry Day in the Sun
-
-- Seedance 2.5 · creator: @CaliraVal · heat: 71 · stability: 70
-- Evidence: [GoodCase](https://goodcase.ai/cases/caliraval-seedance-ai-380c4c6c543b) · [finished media](https://media.goodcase.ai/media/video/caliraval-seedance-ai-380c4c6c543b.mp4) · [poster](https://media.goodcase.ai/media/poster/caliraval-seedance-ai-380c4c6c543b.jpg) · [original source](https://x.com/CaliraVal/status/2091386310837862772)
-- Summary: Just a peaceful laundry day. Fresh clothes, fresh air, good vibes. Created with Seedance 2.5 Prompt: Create a 30-second
-
-```text
-Create a 30-second photorealistic cinematic laundry commercial featuring a young South Asian woman in a bright, modern home. Include a natural female voiceover throughout the video, synchronized with the actions. The voice should sound warm, friendly, clear, and conversational, with soft realistic background laundry sounds and no music overpowering the voice.
-
-0–5 seconds: The woman walks into the laundry area carrying a basket full of dirty clothes and places it beside a modern front-loading washing machine.
-Voiceover: “Laundry day starts with one simple step.”
-
-5–10 seconds: She opens the washing machine and carefully puts the clothes inside one by one. Show realistic fabric movement and natural hand movements.
-Voiceover: “I just load all my clothes into the washing machine…”
-
-10–13 seconds: She adds liquid detergent into the detergent compartment, closes it, and shuts the washing machine door.
-Voiceover: “…add my detergent…”
-
-13–17 seconds: She presses the start button. Close-up of the washing machine starting, with the clothes visibly spinning behind the glass door.
-Voiceover: “…and let the machine do the work.”
-
-17–22 seconds: After the wash, she opens the machine and takes out the fresh, clean clothes. She gently shakes and unfolds the garments.
-Voiceover: “Once they’re clean, they come out fresh and ready to dry.”
-
-22–28 seconds: She carries the clean clothes outside to a clothesline and hangs each garment carefully using clothespins. A gentle breeze makes the clothes move naturally.
-Voiceover: “Then I simply hang them outside and let the fresh air do the rest.”
-
-28–30 seconds: Final cinematic shot of the freshly washed clothes hanging beautifully in warm sunlight while the woman smiles naturally nearby.
-Voiceover: “Clean, fresh, and ready to wear.”
-
-Warm natural daylight, realistic South Asian woman, modern home, detailed clothing textures, realistic washing machine, natural human movement, smooth cinematic camera transitions, close-up shots, subtle handheld movement, realistic fabric physics, gentle outdoor breeze, photorealistic premium commercial quality, natural female voiceover, realistic ambient sounds, clear synchronized speech, vertical 9:16, no subtitles, no text, no watermark, no logos.
-```
-
-## E8 · Luxury Skincare Commercial
+## E7 · Luxury Skincare Commercial
 
 - Seedance 2.0 · creator: @Itswsm105f · heat: 71 · stability: 82
 - Evidence: [GoodCase](https://goodcase.ai/cases/luxury-skincare-commercial) · [finished media](https://media.goodcase.ai/media/video/luxury-skincare-commercial.mp4) · [poster](https://media.goodcase.ai/media/poster/luxury-skincare-commercial.jpg) · [original source](https://x.com/Itswsm105f/status/2077666970707890376)
@@ -244,4 +211,37 @@ Hero product shot on a premium countertop with flowers and soft bokeh background
 
 Style Keywords:
 Luxury skincare commercial, beauty ad, cinematic lighting, realistic skin texture, premium cosmetics marketing, elegant female model, smooth transitions, commercial-grade production, soft glow effect, photorealistic, 4K, high detail, advertising quality, vertical social media ad.
+```
+
+## E8 · A Fresh Laundry Day in the Sun
+
+- Seedance 2.5 · creator: @CaliraVal · heat: 70 · stability: 70
+- Evidence: [GoodCase](https://goodcase.ai/cases/caliraval-seedance-ai-380c4c6c543b) · [finished media](https://media.goodcase.ai/media/video/caliraval-seedance-ai-380c4c6c543b.mp4) · [poster](https://media.goodcase.ai/media/poster/caliraval-seedance-ai-380c4c6c543b.jpg) · [original source](https://x.com/CaliraVal/status/2091386310837862772)
+- Summary: Just a peaceful laundry day. Fresh clothes, fresh air, good vibes. Created with Seedance 2.5 Prompt: Create a 30-second
+
+```text
+Create a 30-second photorealistic cinematic laundry commercial featuring a young South Asian woman in a bright, modern home. Include a natural female voiceover throughout the video, synchronized with the actions. The voice should sound warm, friendly, clear, and conversational, with soft realistic background laundry sounds and no music overpowering the voice.
+
+0–5 seconds: The woman walks into the laundry area carrying a basket full of dirty clothes and places it beside a modern front-loading washing machine.
+Voiceover: “Laundry day starts with one simple step.”
+
+5–10 seconds: She opens the washing machine and carefully puts the clothes inside one by one. Show realistic fabric movement and natural hand movements.
+Voiceover: “I just load all my clothes into the washing machine…”
+
+10–13 seconds: She adds liquid detergent into the detergent compartment, closes it, and shuts the washing machine door.
+Voiceover: “…add my detergent…”
+
+13–17 seconds: She presses the start button. Close-up of the washing machine starting, with the clothes visibly spinning behind the glass door.
+Voiceover: “…and let the machine do the work.”
+
+17–22 seconds: After the wash, she opens the machine and takes out the fresh, clean clothes. She gently shakes and unfolds the garments.
+Voiceover: “Once they’re clean, they come out fresh and ready to dry.”
+
+22–28 seconds: She carries the clean clothes outside to a clothesline and hangs each garment carefully using clothespins. A gentle breeze makes the clothes move naturally.
+Voiceover: “Then I simply hang them outside and let the fresh air do the rest.”
+
+28–30 seconds: Final cinematic shot of the freshly washed clothes hanging beautifully in warm sunlight while the woman smiles naturally nearby.
+Voiceover: “Clean, fresh, and ready to wear.”
+
+Warm natural daylight, realistic South Asian woman, modern home, detailed clothing textures, realistic washing machine, natural human movement, smooth cinematic camera transitions, close-up shots, subtle handheld movement, realistic fabric physics, gentle outdoor breeze, photorealistic premium commercial quality, natural female voiceover, realistic ambient sounds, clear synchronized speech, vertical 9:16, no subtitles, no text, no watermark, no logos.
 ```

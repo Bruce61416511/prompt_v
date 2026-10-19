@@ -18,7 +18,7 @@ Generated from `data/cases.json` + `data/case-taxonomy.json`. Do not hand-edit.
 
 ## E2 · Seedance Fifteen-Second Gym Vlog With Continuous Dialogue
 
-- Seedance 2.0 · creator: @noorlewisx · heat: 68 · stability: 81
+- Seedance 2.0 · creator: @noorlewisx · heat: 67 · stability: 81
 - Evidence: [GoodCase](https://goodcase.ai/cases/noorlewisx-seedance-ai-b2d98861daf9) · [finished media](https://media.goodcase.ai/media/video/noorlewisx-seedance-ai-b2d98861daf9.mp4) · [poster](https://media.goodcase.ai/media/poster/noorlewisx-seedance-ai-b2d98861daf9.jpg) · [original source](https://x.com/noorlewisx/status/2089573549044568375)
 - Summary: Gym Vlog .Let’s Get This Workout Started A Quick Look Into My Gym Routine Made with seedance 2.0 Prompt: 15-Second Gym V
 
@@ -162,7 +162,7 @@ She smiles without looking u
 
 ## E5 · Flowers Bloom as a Woman Confides in a Sunlit Country Garden
 
-- Seedance 2.5 · creator: @AIwithZeeshi · heat: 62
+- Seedance 2.5 · creator: @AIwithZeeshi · heat: 61
 - Evidence: [GoodCase](https://goodcase.ai/cases/seedance-2-5-a-peaceful-countryside-garden-on-a-warm-sunny-morning-73d9d998ca98) · [finished media](https://media.goodcase.ai/cases/0c1c8aa71c94.mp4) · [poster](https://media.goodcase.ai/cases/e89d080fac28.jpg) · [original source](https://x.com/AIwithZeeshi/status/2106967008650969278)
 - Summary: A flower really said: “The truth makes me bloom.” Created with Seedance 2.5. Prompt: A peaceful countryside garden on a warm sunny morning. A young Western woma…
 
